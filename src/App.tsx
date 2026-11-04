@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { Boot } from './components/Boot';
 import { Layout } from './components/Shell';
+import { SCENARIOS } from './data/scenarios';
 import { EngineProvider } from './state/engine';
 import { useStore } from './state/store';
 import { WatchFloor } from './routes/WatchFloor';
@@ -42,6 +43,8 @@ export function App() {
     const q = new URLSearchParams(location.search);
     if (q.has('noboot') || (!q.has('boot') && sessionStorage.getItem('navifi-booted'))) setBooted(true);
     const st = useStore.getState();
+    const scenario = q.get('scenario');
+    if (scenario && scenario !== st.scenarioId && SCENARIOS.some((s) => s.id === scenario)) st.setScenario(scenario);
     if (q.has('reset')) {
       st.resetSession();
       q.delete('reset');

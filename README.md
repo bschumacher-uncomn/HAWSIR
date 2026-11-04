@@ -48,6 +48,7 @@ Before each run, open `http://localhost:5310/?reset` (or press `Shift+R`) so ear
 
 ## Engineering
 
-- Deterministic engine with 15 tests (`pnpm test`), including the classic example: part 1200, team 1400, 3 h repair, required 1800 → ready 1700 with 1 h margin; part to 1330 has no consequence; team to 1600 misses by 1 h.
+- Deterministic engine with 19 tests (`pnpm test`), including the classic example: part 1200, team 1400, 3 h repair, required 1800 → ready 1700 with 1 h margin; part to 1330 has no consequence; team to 1600 misses by 1 h.
+- Three workflows on the same engine, switchable from the header (or `?scenario=`): `ddg21` DDG readiness 21 days to tasking, `reload72` VLS reload at Souda Bay 72 hours to station, and `classic` the five-input radar repair.
 - [Architecture](docs/ARCHITECTURE.md) · [Deploy](docs/DEPLOY.md)
 - Container: UBI9 or Iron Bank base, non-root, health-checked. Helm chart with a UDS Package CR. Zarf package and UDS bundle for air-gapped hulls. OSCAL component definition with Lula validations.

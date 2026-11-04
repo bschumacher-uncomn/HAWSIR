@@ -23,6 +23,7 @@ const ARRAYS = [
   { id: 'sys_spy_d', label: 'D', bearing: 315 },
 ];
 const RADAR_KM = 400;
+const ATLANTIC_VIEW = { longitude: -36.5, latitude: 31, zoom: 3.12 };
 
 function usePulse() {
   const [t, setT] = useState(0);
@@ -47,17 +48,21 @@ export default function Theater() {
   const selectNode = useStore((s) => s.selectNode);
   const pulse = usePulse();
   const track = scenario.track ?? [];
+  const hasGeo = track.length > 0;
   const ship = positionAt(track, at);
   const split = useMemo(() => splitTrack(track, at), [track, at]);
   const legs = useMemo(() => resolveLegs(scenario, nodes, result, at, cap), [scenario, nodes, result, at, cap]);
   const phase = scenario.phases.find((p) => at >= p.start && at < p.end);
   const area = scenario.missionArea;
+  const view = scenario.mapView ?? ATLANTIC_VIEW;
+  // constant on-screen radar size regardless of the scenario's zoom
+  const radarKm = RADAR_KM * 2 ** (ATLANTIC_VIEW.zoom - view.zoom);
 
-  const arrays = ARRAYS.filter((a) => nodes[a.id]).map((a) => {
+  const arrays = ARRAYS.filter((a) => hasGeo && nodes[a.id]).map((a) => {
     const up = (result.nodes[a.id]?.ready ?? Infinity) <= at + 1e-6;
     const center = ship.pos;
     const b = ship.heading + a.bearing;
-    return { ...a, up, poly: wedge(center, RADAR_KM, b - 44, b + 44), labelPos: offset(center, RADAR_KM * 0.62, b), eta: result.nodes[a.id]?.ready };
+    return { ...a, up, poly: wedge(center, radarKm, b - 44, b + 44), labelPos: offset(center, radarKm * 0.62, b), eta: result.nodes[a.id]?.ready };
   });
   const blind = arrays.filter((a) => !a.up);
   const alts = legs.filter((l) => !l.done && (l.onChain || l.status !== 'ok')).flatMap((l) => l.alts.filter((a) => !a.past).map((a) => ({ ...a, from: l.from, leg: l })));
@@ -106,7 +111,7 @@ export default function Theater() {
       getWidth: (d) => (d.up ? 1 : 2),
       widthUnits: 'pixels',
     }),
-    new PathLayer({ id: 'radar-sweep', data: [[ship.pos, offset(ship.pos, RADAR_KM, (pulse * 90) % 360)]], getPath: (d) => d, getColor: [167, 243, 255, 160], getWidth: 1.5, widthUnits: 'pixels', updateTriggers: { getPath: pulse } }),
+    new PathLayer({ id: 'radar-sweep', data: [[ship.pos, offset(ship.pos, radarKm, (pulse * 90) % 360)]], getPath: (d) => d, getColor: [167, 243, 255, 160], getWidth: 1.5, widthUnits: 'pixels', updateTriggers: { getPath: pulse } }),
     ...legs.flatMap((l) => {
       const col = LEG_COLOR[l.status];
       const base = [
@@ -195,7 +200,7 @@ export default function Theater() {
           .filter((l) => !l.done && (l.onChain || l.status !== 'ok'))
           .map((l) => ({ pos: along(l.path, 0.5), text: `${l.leg.label.toUpperCase()} · ${Number.isFinite(l.eta) ? fmtT(scenario, l.eta) : 'NO WINDOW'}`, color: rgb(LEG_COLOR[l.status], 255), size: l.onChain ? 13 : 11, off: [0, -12] })),
         ...alts.map((a) => ({ pos: a.pos, text: a.label.toUpperCase(), color: a.enabled ? [148, 163, 184, 230] : [196, 181, 253, 255], size: 10, off: [0, 20] })),
-        ...(area ? [{ pos: [area.lon, area.lat - 2.1], text: area.name, color: [251, 113, 133, 255], size: 13, off: [0, 0] }] : []),
+        ...(area ? [{ pos: offset([area.lon, area.lat], area.radiusKm + 75 * 2 ** (ATLANTIC_VIEW.zoom - view.zoom), 180), text: area.name, color: [251, 113, 133, 255], size: 13, off: [0, 0] }] : []),
         { pos: ship.pos, text: `${scenario.ship.name} ${scenario.ship.hull}`, color: [255, 255, 255, 255], size: 12, off: [16, 22] },
         ...blind.map((a) => ({ pos: a.labelPos, text: `ARRAY ${a.label} DOWN`, color: [251, 59, 92, 255], size: 10, off: [0, 0] })),
       ],
@@ -213,7 +218,9 @@ export default function Theater() {
       outlineColor: [2, 6, 12, 255],
       fontSettings: { sdf: true },
     }),
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .slice(0, hasGeo ? undefined : 3);
 
   return (
     <div className="flex h-full flex-col gap-3 p-3">
@@ -227,14 +234,26 @@ export default function Theater() {
       </div>
       <div className="relative min-h-0 flex-1 overflow-hidden rounded-[4px] border border-sky-400/15" style={{ background: 'radial-gradient(1200px 700px at 60% 40%, #06213a 0%, #030c17 60%, #02060c 100%)' }}>
         <DeckGL
+          key={scenario.id}
           views={new MapView({ repeat: false })}
-          initialViewState={{ longitude: -33.5, latitude: 31, zoom: 3.2, pitch: 36, bearing: -3 }}
+          initialViewState={{ ...view, pitch: 36, bearing: -3 }}
           controller={{ dragRotate: true }}
           layers={layers}
           getCursor={({ isHovering }) => (isHovering ? 'pointer' : 'grab')}
         />
 
-        <div className="pointer-events-none absolute left-4 top-3 space-y-1">
+        {!hasGeo && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="hud max-w-[440px] px-6 py-5 text-center">
+              <div className="label !text-unc">No movement picture for this workflow</div>
+              <div className="mt-2 text-[13px] leading-relaxed text-sky-100/80">
+                “{scenario.name}” has no voyage track or movement legs, so there is nothing to place on the map. The engine, graph, horizon and simulation views still run on it.
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className={cn('pointer-events-none absolute left-4 top-3 space-y-1', !hasGeo && 'hidden')}>
           <div className="label !text-calc/80">Own ship · {fmtT(scenario, at)}</div>
           <div className="font-mono text-[18px] font-bold text-white">{dms(ship.pos)}</div>
           <div className="flex gap-3 font-mono text-[11px] text-sky-200/70">
@@ -244,7 +263,7 @@ export default function Theater() {
           </div>
         </div>
 
-        <div className="absolute bottom-3 left-3 top-[86px] w-[330px]">
+        <div className={cn('absolute bottom-3 left-3 top-[86px] w-[330px]', !hasGeo && 'hidden')}>
           <Panel title="Movements feeding readiness" index="THR-1" className="h-full" bodyClass="space-y-1.5 overflow-y-auto p-2">
             {legs.map((l) => {
               const Icon = LEG_ICON[l.leg.kind];
@@ -275,7 +294,7 @@ export default function Theater() {
           </Panel>
         </div>
 
-        <div className="absolute right-3 top-3 w-[300px]">
+        <div className={cn('absolute right-3 top-3 w-[300px]', !arrays.length && 'hidden')}>
           <Panel title="SPY-1D coverage · notional" index="THR-2" tone={blind.length ? 'crit' : undefined} bodyClass="p-3">
             <div className="flex items-center gap-3">
               <svg width={84} height={84} viewBox="-42 -42 84 84">
@@ -308,7 +327,7 @@ export default function Theater() {
           </Panel>
         </div>
 
-        <div className="absolute bottom-3 left-[354px] right-3">
+        <div className={cn('absolute bottom-3 right-3', hasGeo ? 'left-[354px]' : 'left-3')}>
           <Panel title="Voyage phases · capability needed at each phase start" index="THR-3" bodyClass="flex gap-1.5 p-2">
             {scenario.phases.map((p) => {
               const past = p.end <= at;

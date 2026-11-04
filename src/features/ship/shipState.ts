@@ -48,6 +48,11 @@ export function shipParts(nodes: NodeMap, r: EngineResult, at: number, fmt?: (t:
     if (n.kind === 'input' && n.domain !== 'maintenance') continue;
     (groups[n.part] ??= []).push(n.id);
   }
+  // a part with no system record of its own is down until its maintenance tasks complete
+  const recorded = new Set(Object.keys(groups));
+  for (const n of Object.values(nodes)) {
+    if (n.kind === 'task' && n.domain === 'maintenance' && n.part && n.part !== 'crew' && !recorded.has(n.part)) (groups[n.part] ??= []).push(n.id);
+  }
   const out: Partial<Record<ShipPart, PartState>> = {};
   for (const [part, ids] of Object.entries(groups) as [ShipPart, string[]][]) {
     const down = ids.filter((id) => (r.nodes[id]?.ready ?? Infinity) > at + 1e-6);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { classic } from '@/data/classic';
 import { D, ddg21 } from '@/data/ddg21';
+import { R, reload72 } from '@/data/reload72';
 import { applyPatches, compute, createMonteCarlo, diffResults, evaluateOptions, explainEvent, findCliffs, runMonteCarlo, slackFor, stateAt, fmtT } from './index';
 
 const cap = (s: typeof ddg21, t: number, id: string) => {
@@ -138,5 +139,35 @@ describe('DDG 21-day readiness', () => {
       rows.push(`${e.id} ${fmtT(ddg21, e.t)} AMD ${amd.status} ${fmtT(ddg21, amd.ready)} ctl=${amd.controlling.label} | ASW ${asw.status} | MOB ${mob.status}`);
     }
     console.log(rows.join('\n'));
+  });
+});
+
+describe('reload72 VLS reload (same engine, second workflow)', () => {
+  it('baseline: airlift controls AMD with 19h margin', () => {
+    const c = cap(reload72, R(-3, '0600'), 'c_amd');
+    expect(c.margin).toBe(19);
+    expect(c.controlling.nodeId).toBe('in_ord_c17');
+  });
+
+  it('a 12h airlift slip costs 17h: berth slot A is missed and slot B controls', () => {
+    const c = cap(reload72, R(-3, '1100'), 'c_amd');
+    expect(c.margin).toBe(2);
+    expect(c.controlling.kind).toBe('window');
+  });
+
+  it('supervisor light duty takes control and breaks the sail requirement', () => {
+    const c = cap(reload72, R(-3, '1500'), 'c_amd');
+    expect(c.status).toBe('N');
+    expect(c.margin).toBe(-2);
+    expect(c.controlling.nodeId).toBe('p_gmc_horvat');
+  });
+
+  it('expediting the airlift alone recovers nothing; adding a cross-decked supervisor recovers 15h', () => {
+    const t = R(-3, '2200');
+    const { nodes } = stateAt(reload72, t);
+    const { singles, combos } = evaluateOptions(reload72, nodes, t, 'c_amd');
+    expect(singles.find((o) => o.id === 'X_CHANIA')!.recovered).toBe(0);
+    expect(combos[0].id).toBe('X_XDECK+X_CHANIA');
+    expect(combos[0].recovered).toBe(15);
   });
 });

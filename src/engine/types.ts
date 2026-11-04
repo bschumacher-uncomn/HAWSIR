@@ -13,6 +13,9 @@ export type SourceSystem =
   | 'HSM-SQDN'
   | 'CMS'
   | 'WATCHBILL'
+  | 'AMC'
+  | 'NAVFAC'
+  | 'MRRS'
   | 'NAVIFI';
 
 export interface SourceRef {
@@ -195,6 +198,8 @@ export interface Scenario {
   places?: Record<string, { name: string; lon: number; lat: number }>;
   legs?: GeoLeg[];
   missionArea?: { name: string; lon: number; lat: number; radiusKm: number };
+  /** Theater camera; defaults to the Atlantic crossing view. */
+  mapView?: { longitude: number; latitude: number; zoom: number };
 }
 
 /** A physical movement (part, person, aircraft, data) whose arrival is an engine node. */

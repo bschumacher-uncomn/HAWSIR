@@ -83,6 +83,11 @@ const defaultWatch = (id: string) => {
   return s.timeScale === 'hours' ? s.watchStart : last.t + 1;
 };
 
+const defaultCap = (id: string) => {
+  const caps = scenarioById(id).nodes.filter((n) => n.kind === 'capability');
+  return (caps.find((n) => n.code === 'AMD') ?? caps[0])?.id ?? '';
+};
+
 const postAudit = (e: AuditEntry) => {
   fetch('/api/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) }).catch(() => undefined);
 };
@@ -111,8 +116,7 @@ export const useStore = create<State>()(
       setBooted: (booted) => set({ booted }),
       setScenario: (id) => {
         const s = scenarioById(id);
-        const cap = s.nodes.find((n) => n.kind === 'capability' && n.code === 'AMD') ?? s.nodes.find((n) => n.kind === 'capability');
-        set({ scenarioId: id, watchTime: defaultWatch(id), shifts: {}, approved: [], selectedNode: null, focusEventId: null, selectedCap: cap?.id ?? '' });
+        set({ scenarioId: id, watchTime: defaultWatch(id), shifts: {}, approved: [], selectedNode: null, focusEventId: null, selectedCap: defaultCap(id) });
         get().log('WATCHSTANDER', 'SCENARIO_LOAD', `Loaded workflow "${s.name}"`, { id });
       },
       setWatchTime: (t) => set({ watchTime: t }),
@@ -180,7 +184,6 @@ export const useStore = create<State>()(
       },
       resetSession: () => {
         const s = scenarioById(get().scenarioId);
-        const cap = s.nodes.find((n) => n.kind === 'capability' && n.code === 'AMD') ?? s.nodes.find((n) => n.kind === 'capability');
         set({
           audit: [],
           decisions: [],
@@ -191,7 +194,7 @@ export const useStore = create<State>()(
           playing: false,
           link: 'SATCOM',
           watchTime: defaultWatch(s.id),
-          selectedCap: cap?.id ?? '',
+          selectedCap: defaultCap(s.id),
           selectedNode: null,
           focusEventId: null,
         });
@@ -201,6 +204,11 @@ export const useStore = create<State>()(
     }),
     {
       name: 'navifi-session',
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<State>;
+        const id = scenarioById(p.scenarioId ?? current.scenarioId).id;
+        return { ...current, ...p, scenarioId: id, watchTime: defaultWatch(id), selectedCap: defaultCap(id) };
+      },
       partialize: (s) => ({
         scenarioId: s.scenarioId,
         approved: s.approved,

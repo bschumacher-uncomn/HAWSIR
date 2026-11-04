@@ -52,7 +52,7 @@ export const PIPELINE: Stage[] = [
   { id: 'commit', name: 'Signed commit', tool: 'git + gitsign', kind: 'source', result: 'verified signature', secs: 1 },
   { id: 'ai', name: 'AI code review', tool: 'ci/ai-review.mjs → in-cluster LLM', kind: 'ai', result: '2 suggestions · 0 blocking', secs: 38 },
   { id: 'human', name: 'Human approval', tool: 'two-person rule', kind: 'human', result: 'approved · reviewer of record', secs: 0 },
-  { id: 'test', name: 'Engine tests', tool: 'vitest', kind: 'test', result: '15 / 15 pass', secs: 3 },
+  { id: 'test', name: 'Engine tests', tool: 'vitest', kind: 'test', result: '19 / 19 pass', secs: 3 },
   { id: 'types', name: 'Typecheck + lint', tool: 'tsc --strict', kind: 'test', result: '0 errors', secs: 11 },
   { id: 'sast', name: 'Static analysis', tool: 'Semgrep', kind: 'security', result: '0 high · 0 critical', secs: 22 },
   { id: 'build', name: 'Hardened image', tool: 'Iron Bank UBI9 base · non-root', kind: 'build', result: 'navifi:0.9.3', secs: 64 },
