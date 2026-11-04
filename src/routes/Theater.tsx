@@ -1,7 +1,8 @@
 import DeckGL from '@deck.gl/react';
 import { MapView } from '@deck.gl/core';
 import { GeoJsonLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from '@deck.gl/layers';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { usePulse } from '@/lib/usePulse';
 import { Anchor, Box, Plane, Radio, User, type LucideIcon } from 'lucide-react';
 import { fmtT } from '@/engine/time';
 import { useEngine } from '@/state/engine';
@@ -24,24 +25,6 @@ const ARRAYS = [
 ];
 const RADAR_KM = 400;
 const ATLANTIC_VIEW = { longitude: -36.5, latitude: 31, zoom: 3.12 };
-
-function usePulse() {
-  const [t, setT] = useState(0);
-  useEffect(() => {
-    let raf = 0;
-    let last = 0;
-    const loop = (now: number) => {
-      if (now - last > 33) {
-        setT(now / 1000);
-        last = now;
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  return t;
-}
 
 export default function Theater() {
   const { scenario, at, nodes, result, cap } = useEngine();

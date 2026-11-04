@@ -8,6 +8,7 @@ import { EngineProvider } from './state/engine';
 import { useStore } from './state/store';
 import { WatchFloor } from './routes/WatchFloor';
 
+const Fleet = lazy(() => import('./routes/Fleet'));
 const GraphView = lazy(() => import('./routes/GraphView'));
 const Horizon = lazy(() => import('./routes/Horizon'));
 const Simulate = lazy(() => import('./routes/Simulate'));
@@ -66,6 +67,7 @@ export function App() {
             <Suspense fallback={<Loading />}>
               <Routes>
                 <Route path="/" element={<WatchFloor />} />
+                <Route path="/fleet" element={<Fleet />} />
                 <Route path="/graph" element={<GraphView />} />
                 <Route path="/horizon" element={<Horizon />} />
                 <Route path="/sim" element={<Simulate />} />

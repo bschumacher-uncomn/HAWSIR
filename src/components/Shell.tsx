@@ -3,6 +3,7 @@ import {
   CalendarRange,
   Cpu,
   Dices,
+  Earth,
   FastForward,
   FlaskConical,
   Globe,
@@ -33,6 +34,7 @@ import { Tour } from './Tour';
 import { RadarSweep } from './ui';
 
 const NAV = [
+  { to: '/fleet', icon: Earth, label: 'Fleet Picture', hint: 'Global missions' },
   { to: '/', icon: Radar, label: 'Watch Floor', hint: 'Five answers' },
   { to: '/graph', icon: Network, label: 'Consequence Graph', hint: 'What controls' },
   { to: '/horizon', icon: CalendarRange, label: 'Readiness Horizon', hint: '21-day risk' },

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { create } from 'zustand';
 import { scenarioById } from '@/data/scenarios';
+import { useFleet } from '@/features/fleet/store';
 import { useStore } from '@/state/store';
 
 interface Step {
@@ -12,13 +13,16 @@ interface Step {
   ms: number;
   /** Replays the change stream; the step ends when playback does (or at `ms`). */
   replay?: boolean;
+  fleet?: { active: string[]; mission: string | null };
 }
 
 const TOUR_SCENARIO = 'ddg21';
 const REPLAY_SPEED = 24;
 
 const STEPS: Step[] = [
-  { to: '/', title: 'Watch floor', caption: 'Each feed change is recomputed on the edge node. Watch the change stream: the CASREP lands, the part slips, the technicians leave.', ms: 120_000, replay: true },
+  { to: '/fleet', title: 'Global fleet picture', caption: '38 hulls, 12 missions and 150 parts, people and data packages in motion. Every arc is timed by the same deterministic engine: how much slack before it breaks its mission.', ms: 11_000, fleet: { active: [], mission: null } },
+  { to: '/fleet', title: 'What-if: AMC stand-down', caption: 'One airlift stand-down re-times every package in a fraction of a second. Five missions go NOT READY; CSG-14 is now controlled by F414 engines that can only make the third COD run.', ms: 13_000, fleet: { active: ['amc'], mission: 'csg14' } },
+  { to: '/', title: 'Watch floor', caption: 'Drill into one hull. Each feed change is recomputed on the edge node. Watch the change stream: the CASREP lands, the part slips, the technicians leave.', ms: 120_000, replay: true, fleet: { active: [], mission: null } },
   { to: '/', title: 'Five answers, one screen', caption: 'What changed, what it affects, what controls readiness, margin and certainty, and bounded options. AMD is Q, and FC1 Martinez controls it.', ms: 10_000 },
   { to: '/graph', title: 'Consequence graph', caption: 'The critical chain from feeds to capability, with upstream slack and mission margin on every node.', ms: 9_000 },
   { to: '/horizon', title: 'Readiness horizon', caption: 'Know before it breaks the mission: projected readiness against each phase, and every act-by deadline.', ms: 9_000 },
@@ -41,6 +45,7 @@ function enterStep(step: Step, first: boolean) {
     if (st.scenarioId !== TOUR_SCENARIO) st.setScenario(TOUR_SCENARIO);
     st.resetSession();
   }
+  if (step.fleet) useFleet.setState({ ...step.fleet, ship: null });
   if (step.replay) {
     const s = scenarioById(TOUR_SCENARIO);
     st.focusEvent(null);
