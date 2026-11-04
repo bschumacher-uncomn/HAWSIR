@@ -40,6 +40,12 @@ export function templateBrief(s: Scenario, cap: CapabilityResult, focus: EventIm
 }
 
 const cache = new Map<string, string>();
+let llmConfigured: Promise<boolean> | null = null;
+const probeLlm = () =>
+  (llmConfigured ??= fetch('/api/health', { signal: AbortSignal.timeout(3000) })
+    .then((r) => r.json())
+    .then((j: { llm?: { configured?: boolean } }) => !!j.llm?.configured)
+    .catch(() => false));
 
 export function useNarrative(key: string, facts: string[], fallback: string): { text: string; source: NarrativeSource } {
   const link = useStore((s) => s.link);
@@ -61,12 +67,14 @@ export function useNarrative(key: string, facts: string[], fallback: string): { 
     }
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), link === 'DDIL' ? 4000 : 9000);
-    fetch('/api/narrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ facts, draft: fallback }), signal: ctl.signal })
+    probeLlm()
+      .then((ok) => (ok ? fetch('/api/narrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ facts, draft: fallback }), signal: ctl.signal }) : Promise.reject('no llm')))
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((j: { text?: string }) => {
+      .then((j: { text?: string; model?: string }) => {
         if (j.text) {
           cache.set(k, j.text);
           setState({ text: j.text, source: 'LLM' });
+          useStore.getState().log('AI', 'NARRATIVE', `Explanation drafted by ${j.model ?? 'LLM'} from ${facts.length} calculated facts; calculations unchanged`, { facts: facts.length, model: j.model });
         }
       })
       .catch(() => undefined)

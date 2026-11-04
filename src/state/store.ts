@@ -72,6 +72,7 @@ interface State {
   log: (actor: Actor, action: string, detail: string, data?: unknown) => void;
   markShoreSynced: (n: number) => void;
   tamper: () => void;
+  restoreEntry: (seq: number, original: Pick<AuditEntry, 'detail' | 'data'>) => void;
   resetSession: () => void;
   setLlm: (on: boolean) => void;
 }
@@ -173,6 +174,10 @@ export const useStore = create<State>()(
           const audit = st.audit.map((e, k) => (k === i ? { ...e, detail: e.detail + ' [edited]' } : e));
           return { audit };
         }),
+      restoreEntry: (seq, original) => {
+        set((st) => ({ audit: st.audit.map((e) => (e.seq === seq ? { ...e, detail: original.detail, data: original.data } : e)) }));
+        get().log('SYSTEM', 'AUDIT_RESTORED', `Entry #${seq} restored from edge copy (hash match)`, { seq });
+      },
       resetSession: () => set({ audit: [], decisions: [], approved: [], shifts: {}, halted: false }),
       setLlm: (llmEnabled) => set({ llmEnabled }),
     }),
@@ -189,3 +194,5 @@ export const useStore = create<State>()(
     },
   ),
 );
+
+if (import.meta.env.DEV) (window as unknown as { __navifi: typeof useStore }).__navifi = useStore;

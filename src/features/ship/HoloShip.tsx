@@ -404,18 +404,25 @@ function Projector() {
 }
 
 function Callouts({ parts, focus }: { parts: Partial<Record<ShipPart, PartState>>; focus: Set<ShipPart>; }) {
-  const shown = (Object.values(parts) as PartState[]).filter((p) => (!p.up || p.flagged || focus.has(p.part)) && PART_POS[p.part] && p.part !== 'crew');
+  const all = (Object.values(parts) as PartState[]).filter((p) => PART_POS[p.part] && p.part !== 'crew');
+  const shown = all
+    .filter((p) => !p.up || p.flagged || focus.has(p.part))
+    .slice(0, 6)
+    .map((p) => p.part);
+  // Html callouts own separate React roots; keep them mounted and hide them, since unmounting mid-render races React 19.
   return (
     <>
-      {shown.slice(0, 6).map((p, i) => {
+      {all.map((p) => {
+        const i = Math.max(0, shown.indexOf(p.part));
+        const visible = shown.includes(p.part);
         const pos = PART_POS[p.part]!;
         const side = i % 2 ? -1 : 1;
         const tip: [number, number, number] = [pos[0] + 0.4 * side, pos[1] + 1.1 + (i % 3) * 0.35, pos[2] + 0.9 * side];
         const color = p.up && !p.flagged ? '#67e8f9' : SEV_COLOR[p.sev];
         return (
           <group key={p.part}>
-            <Line points={[pos, tip]} color={color} lineWidth={1} transparent opacity={0.8} dashed dashSize={0.06} gapSize={0.04} />
-            <Html position={tip} center distanceFactor={9} zIndexRange={[10, 0]}>
+            <Line visible={visible} points={[pos, tip]} color={color} lineWidth={1} transparent opacity={0.8} dashed dashSize={0.06} gapSize={0.04} />
+            <Html position={tip} center distanceFactor={9} zIndexRange={[10, 0]} style={{ display: visible ? undefined : 'none' }}>
               <div className="pointer-events-none whitespace-nowrap rounded-[2px] border bg-[#020a12]/85 px-2 py-1 backdrop-blur" style={{ borderColor: `${color}88`, boxShadow: `0 0 18px -4px ${color}` }}>
                 <div className="font-display text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color }}>
                   {p.label}
