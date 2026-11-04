@@ -1,0 +1,214 @@
+@font-face { font-family: 'Chakra Petch'; font-weight: 400; src: url('/node_modules/@fontsource/chakra-petch/files/chakra-petch-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 500; src: url('/node_modules/@fontsource/chakra-petch/files/chakra-petch-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 600; src: url('/node_modules/@fontsource/chakra-petch/files/chakra-petch-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 700; src: url('/node_modules/@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 100 900; src: url('/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations'); }
+@font-face { font-family: 'JBM'; font-weight: 100 800; src: url('/node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2') format('woff2-variations'); }
+
+:root {
+  --cyan: #22d3ee;
+  --crit: #fb3b5c;
+  --amber: #fbbf24;
+  --ok: #34d399;
+  --ink: #e0f2fe;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+#stage {
+  position: relative; width: 1920px; height: 1080px; overflow: hidden; color: var(--ink); font-family: Inter, sans-serif;
+  background: radial-gradient(1400px 900px at 50% 40%, #071a2c 0%, #030b15 55%, #010307 100%);
+}
+.layer { position: absolute; inset: 0; }
+.grid {
+  position: absolute; inset: -128px;
+  background-image: linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* footage */
+.shot { position: absolute; inset: 0; overflow: hidden; background: #02060c; }
+.media { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+.shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(1, 3, 7, 0.55) 0%, rgba(1, 3, 7, 0) 14%, rgba(1, 3, 7, 0) 62%, rgba(1, 3, 7, 0.9) 100%); }
+
+/* callouts */
+.callout {
+  position: absolute; border: 2px solid var(--c); border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 30px var(--c), inset 0 0 26px color-mix(in srgb, var(--c) 30%, transparent);
+}
+.callout-tag {
+  position: absolute; left: -2px; bottom: calc(100% + 10px); white-space: nowrap;
+  font: 700 21px 'Chakra Petch'; letter-spacing: 0.12em; text-transform: uppercase; color: #02060c;
+  background: var(--c); padding: 5px 14px; border-radius: 3px; box-shadow: 0 0 26px var(--c);
+}
+.callout.below .callout-tag { bottom: auto; top: calc(100% + 10px); }
+.callout.left .callout-tag { left: auto; right: -2px; }
+
+/* HUD tags and stat plates */
+.tag {
+  position: absolute; left: 64px; top: 64px; display: flex; align-items: center; gap: 12px;
+  font: 650 18px JBM; letter-spacing: 0.22em; text-transform: uppercase; color: var(--c);
+  background: rgba(2, 6, 12, 0.84); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); padding: 10px 18px; border-radius: 4px;
+}
+.tag i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px var(--c); }
+.stat {
+  position: absolute; padding: 18px 28px 20px; border-left: 6px solid var(--c); border-radius: 4px; max-width: 900px;
+  background: linear-gradient(90deg, rgba(2, 6, 12, 0.95), rgba(2, 6, 12, 0.78));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+.stat b { display: block; white-space: nowrap; font: 700 70px/0.95 'Chakra Petch'; color: var(--c); text-shadow: 0 0 34px color-mix(in srgb, var(--c) 70%, transparent); text-transform: uppercase; }
+.stat span { display: block; margin-top: 10px; font: 600 25px/1.3 Inter; color: #f1f5f9; }
+.stat small { display: block; margin-top: 8px; font: 500 15px JBM; letter-spacing: 0.06em; color: #94a3b8; }
+
+/* criterion card */
+.card { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(1300px 800px at 26% 50%, color-mix(in srgb, var(--c) 16%, #030b15) 0%, #02060c 58%, #010205 100%); }
+.card-num {
+  position: absolute; left: 60px; top: 170px; font: 700 500px/0.8 'Chakra Petch'; letter-spacing: -0.03em;
+  color: transparent; -webkit-text-stroke: 3px var(--c); filter: drop-shadow(0 0 34px var(--c));
+}
+.card-body { position: absolute; left: 680px; top: 210px; right: 100px; }
+.card-kicker { font: 650 21px JBM; letter-spacing: 0.36em; color: var(--c); }
+.card-name { margin-top: 18px; font: 700 52px/1.02 'Chakra Petch'; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; white-space: nowrap; }
+.card-weight { margin-top: 26px; display: flex; align-items: center; gap: 20px; }
+.card-weight b { font: 700 66px 'Chakra Petch'; color: var(--c); text-shadow: 0 0 26px var(--c); min-width: 150px; }
+.card-weight span { font: 650 17px JBM; letter-spacing: 0.32em; color: #94a3b8; }
+.wbar { width: 520px; height: 10px; background: rgba(148, 163, 184, 0.16); border-radius: 5px; overflow: hidden; }
+.wfill { height: 100%; width: 0; background: var(--c); box-shadow: 0 0 18px var(--c); }
+.card-punch { margin-top: 54px; font: 700 94px/1.04 'Chakra Petch'; color: #fff; }
+.card-punch .w { display: inline-block; margin-right: 0.24em; }
+.card-punch .last { color: var(--c); text-shadow: 0 0 44px var(--c); }
+.card-rubric { position: absolute; left: 110px; right: 110px; bottom: 66px; display: flex; gap: 8px; height: 48px; }
+.seg {
+  display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-radius: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.25); font: 650 14px JBM; letter-spacing: 0.1em; color: #64748b; white-space: nowrap; overflow: hidden; gap: 10px;
+}
+.seg.on { border-color: var(--c); color: #02060c; background: var(--c); box-shadow: 0 0 26px var(--c); }
+.seg.done { color: #94a3b8; background: rgba(148, 163, 184, 0.12); }
+
+/* lower third: the one-sentence attack for the criterion on screen */
+.lower {
+  position: absolute; left: 64px; bottom: 54px; width: 1330px; padding: 18px 28px 20px; border-left: 5px solid var(--c);
+  background: linear-gradient(90deg, rgba(2, 6, 12, 0.94) 0%, rgba(2, 6, 12, 0.86) 72%, rgba(2, 6, 12, 0) 100%);
+}
+.lower-k { font: 650 16px JBM; letter-spacing: 0.28em; color: var(--c); text-transform: uppercase; }
+.lower-k b { color: #fff; margin-right: 12px; }
+.lower-k em { font-style: normal; color: #fff; margin-left: 12px; padding: 1px 8px; border: 1px solid var(--c); border-radius: 3px; }
+.lower-t { margin-top: 10px; font: 500 29px/1.34 Inter; color: #f1f5f9; }
+
+/* cold open */
+.cold { position: absolute; inset: 0; }
+.cold-type { position: absolute; left: 0; right: 0; top: 170px; text-align: center; font: 600 20px JBM; letter-spacing: 0.2em; color: #7dd3fc; }
+.cold-head { position: absolute; left: 0; right: 0; top: 240px; height: 110px; text-align: center; }
+.cold-head span { position: absolute; left: 0; right: 0; font: 700 84px 'Chakra Petch'; letter-spacing: 0.04em; }
+.cold-head .h2 { color: var(--crit); text-shadow: 0 0 48px rgba(251, 59, 92, 0.7); }
+.cold-rows { position: absolute; left: 50%; top: 400px; width: 1180px; margin-left: -590px; display: flex; flex-direction: column; gap: 16px; }
+.row {
+  position: relative; display: flex; align-items: center; gap: 26px; height: 92px; padding: 0 28px; border-radius: 6px;
+  background: rgba(3, 12, 22, 0.92); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); border-left: 6px solid var(--c);
+}
+.row b { width: 220px; font: 700 26px 'Chakra Petch'; letter-spacing: 0.16em; color: var(--c); }
+.row span { width: 400px; font: 700 34px 'Chakra Petch'; letter-spacing: 0.06em; color: #fff; }
+.row em { font: 500 24px Inter; font-style: normal; color: #94a3b8; }
+.row .strike { position: absolute; left: 20px; right: 20px; top: 50%; height: 3px; background: rgba(148, 163, 184, 0.7); transform-origin: 0 50%; }
+.row .ctl { position: absolute; right: 26px; font: 700 30px 'Chakra Petch'; letter-spacing: 0.1em; color: var(--crit); }
+
+/* logo */
+.logo { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.logo-glow { position: absolute; width: 1400px; height: 700px; background: radial-gradient(closest-side, rgba(34, 211, 238, 0.28), rgba(34, 211, 238, 0)); }
+.logo-word { position: relative; display: flex; font: 700 230px/1 'Chakra Petch'; letter-spacing: 0.2em; margin-right: -0.2em; color: #f0fdff; text-shadow: 0 0 40px rgba(34, 211, 238, 0.8), 0 0 120px rgba(34, 211, 238, 0.45); }
+.logo-word span { display: inline-block; }
+.logo-sub { position: relative; margin-top: 22px; font: 650 24px JBM; letter-spacing: 0.62em; margin-right: -0.62em; color: var(--cyan); }
+.logo-tag { position: relative; margin-top: 46px; font: 600 44px 'Chakra Petch'; letter-spacing: 0.06em; color: #fff; }
+.logo-foot { position: relative; margin-top: 60px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.logo-foot b { font: 700 26px 'Chakra Petch'; letter-spacing: 0.32em; color: #e0f2fe; }
+.logo-foot small { font: 500 16px JBM; letter-spacing: 0.18em; color: #64748b; }
+
+/* speed-to-fleet stack */
+.stack-title { position: absolute; left: 0; right: 0; top: 96px; text-align: center; font: 700 64px 'Chakra Petch'; letter-spacing: 0.06em; color: #fff; }
+.stack-sub { position: absolute; left: 0; right: 0; top: 178px; text-align: center; font: 600 20px JBM; letter-spacing: 0.22em; color: #7dd3fc; }
+.stack-layers { position: absolute; left: 610px; width: 700px; top: 262px; display: flex; flex-direction: column-reverse; gap: 12px; }
+.layer-box {
+  height: 96px; padding: 0 26px; display: flex; flex-direction: column; justify-content: center; border-radius: 6px;
+  background: color-mix(in srgb, var(--c) 12%, rgba(2, 8, 16, 0.94)); border: 1px solid color-mix(in srgb, var(--c) 60%, transparent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--c) 30%, transparent);
+}
+.layer-box b { font: 700 36px 'Chakra Petch'; letter-spacing: 0.12em; color: var(--c); }
+.layer-box span { margin-top: 2px; font: 500 18px JBM; color: #cbd5e1; }
+.airgap { position: absolute; left: 520px; top: 250px; bottom: 210px; border-left: 3px dashed rgba(251, 191, 36, 0.7); }
+.airgap i { position: absolute; top: -34px; left: -60px; width: 120px; text-align: center; font: 700 16px JBM; letter-spacing: 0.3em; color: var(--amber); font-style: normal; }
+.pkg {
+  position: absolute; left: 110px; top: 470px; width: 360px; padding: 18px 20px; border-radius: 6px;
+  background: rgba(34, 211, 238, 0.12); border: 2px solid var(--cyan); box-shadow: 0 0 34px rgba(34, 211, 238, 0.45);
+}
+.pkg b { display: block; font: 700 30px 'Chakra Petch'; letter-spacing: 0.14em; color: var(--cyan); }
+.pkg span { display: block; margin-top: 6px; font: 500 16px JBM; line-height: 1.5; color: #e0f2fe; }
+.profiles { position: absolute; left: 1360px; width: 500px; top: 300px; display: flex; flex-direction: column; gap: 22px; }
+.profile { padding: 18px 22px; border-radius: 6px; background: rgba(2, 8, 16, 0.92); border: 2px solid var(--c); }
+.profile.target { border-style: dashed; }
+.profile b { display: block; font: 700 18px JBM; letter-spacing: 0.24em; color: var(--c); }
+.profile span { display: block; margin-top: 8px; font: 700 28px/1.2 'Chakra Petch'; color: #fff; }
+.profile small { display: block; margin-top: 6px; font: 500 16px JBM; color: #94a3b8; }
+
+/* scalability montage + counters */
+.mlabel { position: absolute; left: 64px; top: 140px; padding: 16px 26px; background: rgba(2, 6, 12, 0.9); border-left: 6px solid var(--c); border-radius: 4px; }
+.mlabel b { display: block; font: 700 72px/1 'Chakra Petch'; letter-spacing: 0.06em; color: #fff; }
+.mlabel span { display: block; margin-top: 10px; font: 650 20px JBM; letter-spacing: 0.2em; color: var(--c); }
+.counters-title { position: absolute; left: 0; right: 0; top: 160px; text-align: center; font: 700 86px 'Chakra Petch'; letter-spacing: 0.05em; color: #fff; }
+.counters-sub { position: absolute; left: 0; right: 0; top: 268px; text-align: center; font: 500 28px Inter; color: #bae6fd; }
+.counters { position: absolute; left: 160px; right: 160px; top: 380px; display: flex; gap: 28px; }
+.counter { flex: 1; height: 300px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(2, 8, 16, 0.9); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 0 40px color-mix(in srgb, var(--c) 25%, transparent); }
+.counter b { font: 700 170px/1 'Chakra Petch'; color: var(--c); text-shadow: 0 0 40px var(--c); }
+.counter span { margin-top: 10px; font: 700 26px 'Chakra Petch'; letter-spacing: 0.18em; color: #fff; }
+.counter small { margin-top: 6px; font: 500 16px JBM; color: #94a3b8; }
+
+/* barrier removal: feeds collapse into one picture */
+.feeds-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(1, 4, 9, 0.94) 0%, rgba(1, 4, 9, 0.8) 34%, rgba(1, 4, 9, 0) 62%); }
+.feed {
+  position: absolute; left: 70px; width: 330px; height: 58px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; border-radius: 5px;
+  background: rgba(3, 12, 22, 0.95); border: 1px solid rgba(251, 191, 36, 0.6); font: 700 22px JBM; letter-spacing: 0.12em; color: #fde68a;
+}
+.feed small { font: 500 13px JBM; letter-spacing: 0.08em; color: #94a3b8; }
+.hub {
+  position: absolute; left: 640px; top: 430px; width: 300px; height: 150px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  background: rgba(34, 211, 238, 0.14); border: 2px solid var(--cyan); box-shadow: 0 0 60px rgba(34, 211, 238, 0.5);
+}
+.hub b { font: 700 30px/1.1 'Chakra Petch'; letter-spacing: 0.1em; color: #fff; }
+.hub span { margin-top: 8px; font: 650 15px JBM; letter-spacing: 0.2em; color: var(--cyan); }
+.wires { position: absolute; inset: 0; }
+
+/* judges' discretion principles and recap */
+.lines { position: absolute; left: 140px; right: 140px; top: 190px; display: flex; flex-direction: column; gap: 26px; }
+.line { display: flex; align-items: center; gap: 26px; padding: 22px 30px; border-radius: 6px; background: rgba(2, 8, 16, 0.9); border-left: 6px solid var(--c); }
+.line b { font: 700 54px 'Chakra Petch'; letter-spacing: 0.04em; color: #fff; }
+.line span { font: 500 26px Inter; color: #94a3b8; }
+.recap-title { position: absolute; left: 0; right: 0; top: 110px; text-align: center; font: 700 64px 'Chakra Petch'; letter-spacing: 0.05em; color: #fff; }
+.recap { position: absolute; left: 150px; right: 150px; top: 230px; display: flex; flex-direction: column; gap: 18px; }
+.rrow { display: flex; align-items: center; gap: 28px; height: 118px; padding: 0 30px; border-radius: 6px; background: rgba(2, 8, 16, 0.9); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); border-left: 6px solid var(--c); }
+.rrow .n { font: 700 54px 'Chakra Petch'; color: var(--c); width: 90px; }
+.rrow .nm { width: 640px; }
+.rrow .nm b { display: block; white-space: nowrap; font: 700 27px 'Chakra Petch'; letter-spacing: 0.07em; color: #fff; text-transform: uppercase; }
+.rrow .nm i { display: block; margin-top: 8px; height: 8px; border-radius: 4px; background: var(--c); box-shadow: 0 0 14px var(--c); font-style: normal; }
+.rrow .p { flex: 1; font: 600 32px 'Chakra Petch'; color: #e2e8f0; }
+.rrow .chk { font: 700 40px 'Chakra Petch'; color: var(--c); }
+
+/* HUD */
+.classbar { position: absolute; left: 0; right: 0; top: 0; height: 26px; display: flex; align-items: center; justify-content: center; background: #16a34a; color: #03140a; font: 800 13px JBM; letter-spacing: 0.32em; white-space: nowrap; overflow: hidden; }
+.corner { position: absolute; width: 46px; height: 46px; border: 2px solid rgba(34, 211, 238, 0.5); }
+.corner.tl { left: 26px; top: 42px; border-right: 0; border-bottom: 0; }
+.corner.tr { right: 26px; top: 42px; border-left: 0; border-bottom: 0; }
+.corner.bl { left: 26px; bottom: 22px; border-right: 0; border-top: 0; }
+.corner.br { right: 26px; bottom: 22px; border-left: 0; border-top: 0; }
+.timecode { position: absolute; right: 86px; top: 52px; font: 650 15px JBM; letter-spacing: 0.22em; color: rgba(148, 163, 184, 0.85); }
+.timecode i { display: inline-block; width: 9px; height: 9px; margin-right: 10px; border-radius: 50%; background: var(--crit); box-shadow: 0 0 10px var(--crit); }
+.rubric { position: absolute; right: 64px; bottom: 34px; width: 430px; }
+.rubric .lbl { display: flex; justify-content: space-between; font: 650 12px JBM; letter-spacing: 0.3em; color: #64748b; margin-bottom: 8px; }
+.rubric .lbl b { color: #e2e8f0; font-weight: 650; }
+.rubric .bar { display: flex; gap: 5px; height: 9px; }
+.rubric .bar div { border-radius: 2px; background: rgba(148, 163, 184, 0.2); }
+
+/* finishing */
+.flash { position: absolute; inset: 0; background: #e6fbff; opacity: 0; }
+.gbar { position: absolute; left: 0; right: 0; background: rgba(34, 211, 238, 0.75); mix-blend-mode: screen; }
+.vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.6) 100%); }
+.scan { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px); }
+.grain { position: absolute; inset: 0; opacity: 0.08; mix-blend-mode: overlay; }
+.fade { position: absolute; inset: 0; background: #000; opacity: 0; }

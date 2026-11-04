@@ -13,7 +13,10 @@
     "test": "vitest run",
     "oscal": "tsx ci/gen-oscal.ts",
     "ai-review": "node ci/ai-review.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "video:capture": "node video/capture.mjs",
+    "video:score": "node video/score.mjs",
+    "video:render": "node video/render.mjs"
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.4",
