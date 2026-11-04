@@ -1,12 +1,13 @@
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
+import { scenarioById } from '@/data/scenarios';
 import { useStore } from '@/state/store';
 
 const LINES: { tag: 'OK' | '--' | 'AI' | '!!'; text: string; sub?: string }[] = [
   { tag: 'OK', text: 'Red Hat Enterprise Linux 9.4', sub: 'DISA STIG profile applied · FIPS 140-3 mode · SELinux enforcing' },
   { tag: 'OK', text: 'RKE2 v1.31 (CIS hardened)', sub: '3/3 nodes Ready · etcd encrypted at rest' },
   { tag: 'OK', text: 'UDS Core', sub: 'Istio mTLS STRICT · Keycloak SSO (CAC) · NeuVector · Loki · Prometheus · Pepr policy' },
-  { tag: 'OK', text: 'Zarf package navifi:0.1.0', sub: 'cosign signature verified · SBOM attested (412 components) · 0 critical CVEs' },
+  { tag: 'OK', text: 'Zarf package navifi:0.9.3', sub: 'cosign signature verified · SBOM attested (412 components) · 0 critical CVEs' },
   { tag: 'OK', text: 'Lula OSCAL assessment', sub: '47/48 NIST 800-53 controls satisfied (AU · AC · SC · SI · CM)' },
   { tag: 'OK', text: 'Data adapters (read-only)', sub: 'OMMS-NG · R-Supply · NSIPS · SKED · DRRS-N · AMHS · CMS · HSM' },
   { tag: 'OK', text: 'Deterministic consequence engine', sub: 'self-test 19/19 · critical chain · slack · Monte Carlo (seeded)' },
@@ -20,6 +21,7 @@ const TAG_COLOR = { OK: '#34d399', '--': '#fbbf24', AI: '#a78bfa', '!!': '#22d3e
 export function Boot() {
   const setBooted = useStore((s) => s.setBooted);
   const log = useStore((s) => s.log);
+  const ship = useStore((s) => scenarioById(s.scenarioId).ship);
   const [n, setN] = useState(0);
   const done = n >= LINES.length;
 
@@ -82,7 +84,7 @@ export function Boot() {
           <div className="mt-4 font-display text-5xl font-bold tracking-[0.35em] text-white glow-calc">NAVIFI</div>
           <div className="mt-2 font-display text-[11px] font-semibold tracking-[0.4em] text-calc/80">MISSION CONSEQUENCE ENGINE</div>
           <div className="mt-6 text-center font-mono text-[10.5px] leading-relaxed text-mute">
-            EDGE NODE · USS GRACE HOPPER (DDG-170)
+            EDGE NODE · {ship.name} ({ship.hull})
             <br />
             SYNTHETIC · UNCLASSIFIED
           </div>
