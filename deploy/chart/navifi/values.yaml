@@ -1,0 +1,52 @@
+image:
+  repository: ghcr.io/navifi/navifi
+  tag: "0.9.3"
+  pullPolicy: IfNotPresent
+
+replicas: 1
+
+# Hostname under the UDS tenant gateway: navifi.<domain>
+domain: uds.dev
+
+resources:
+  requests: { cpu: 100m, memory: 192Mi }
+  limits: { cpu: "1", memory: 512Mi }
+
+persistence:
+  # Append-only edge copy of the audit chain.
+  enabled: true
+  size: 2Gi
+  storageClass: ""
+
+# Narrative model. Explanations only; never in the calculation path.
+llm:
+  # External OpenAI-compatible endpoint (shore, when the link allows). Leave blank for template mode.
+  url: ""
+  model: ""
+  existingSecret: ""   # secret with key NAVIFI_LLM_KEY
+  inCluster:
+    enabled: false
+    image: vllm/vllm-openai:v0.6.3
+    model: Qwen/Qwen2.5-3B-Instruct
+    gpu: false
+    resources:
+      requests: { cpu: "2", memory: 6Gi }
+      limits: { cpu: "4", memory: 12Gi }
+
+uds:
+  # Emit a UDS Package CR: Istio exposure, network allow-list, Keycloak SSO, Prometheus monitor.
+  enabled: true
+  sso: true
+  gateway: tenant
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 0
+  fsGroup: 0
+  seccompProfile: { type: RuntimeDefault }
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: { drop: [ALL] }

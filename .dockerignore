@@ -1,0 +1,10 @@
+*.log
+.DS_Store
+.env
+.git
+.pnpm-store
+.shots
+data/runtime
+dist
+dist-server
+node_modules

@@ -1,0 +1,7 @@
+apiVersion: v2
+name: navifi
+description: NAVIFI mission consequence engine for shipboard RKE2 + UDS Core
+type: application
+version: 0.9.3
+appVersion: "0.9.3"
+keywords: [navy, readiness, decision-support, uds, edge]

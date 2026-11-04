@@ -1,0 +1,68 @@
+{{- if .Values.llm.inCluster.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-narrator
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/part-of: navifi
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: vllm }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: vllm, app.kubernetes.io/part-of: navifi }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 0
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: vllm
+          image: {{ .Values.llm.inCluster.image }}
+          args:
+            - --model={{ .Values.llm.inCluster.model }}
+            - --port=8000
+            - --max-model-len=4096
+          env:
+            # Weights arrive inside the Zarf package; never fetched at runtime.
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: HF_HOME
+              value: /models
+          ports:
+            - name: http
+              containerPort: 8000
+          resources:
+            requests: {{- toYaml .Values.llm.inCluster.resources.requests | nindent 14 }}
+            limits:
+              {{- toYaml .Values.llm.inCluster.resources.limits | nindent 14 }}
+              {{- if .Values.llm.inCluster.gpu }}
+              nvidia.com/gpu: 1
+              {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: models
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-narrator
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/part-of: navifi
+spec:
+  selector: { app.kubernetes.io/name: vllm }
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+{{- end }}

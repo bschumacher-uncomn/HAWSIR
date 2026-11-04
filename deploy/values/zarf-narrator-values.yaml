@@ -1,0 +1,10 @@
+# Narrator-only release: reuse the chart, render just the vLLM deployment.
+replicas: 0
+persistence:
+  enabled: false
+uds:
+  enabled: false
+llm:
+  inCluster:
+    enabled: true
+    model: /models/qwen2.5-3b-instruct

@@ -27,19 +27,46 @@ const app = express();
 app.use(compression());
 app.use(express.json({ limit: '1mb' }));
 
+const auditRows = () => (fs.existsSync(AUDIT) ? fs.readFileSync(AUDIT, 'utf8').split('\n').filter(Boolean).length : 0);
+const counters = { auditAccepted: 0, auditRejected: 0, narrateOk: 0, narrateFail: 0 };
+
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    node: os.hostname(),
+    node: process.env.NODE_NAME ?? os.hostname(),
     uptime: process.uptime(),
     llm: { configured: !!LLM_URL, model: LLM_URL ? LLM_MODEL : null },
-    audit: fs.existsSync(AUDIT) ? fs.readFileSync(AUDIT, 'utf8').split('\n').filter(Boolean).length : 0,
+    audit: auditRows(),
   });
+});
+
+app.get('/api/metrics', (_req, res) => {
+  res.type('text/plain; version=0.0.4').send(
+    [
+      '# HELP navifi_up Edge node is serving.',
+      '# TYPE navifi_up gauge',
+      'navifi_up 1',
+      '# TYPE navifi_uptime_seconds gauge',
+      `navifi_uptime_seconds ${process.uptime().toFixed(0)}`,
+      '# TYPE navifi_audit_rows gauge',
+      `navifi_audit_rows ${auditRows()}`,
+      '# TYPE navifi_audit_entries_total counter',
+      `navifi_audit_entries_total{verified="true"} ${counters.auditAccepted}`,
+      `navifi_audit_entries_total{verified="false"} ${counters.auditRejected}`,
+      '# TYPE navifi_narrate_requests_total counter',
+      `navifi_narrate_requests_total{result="ok"} ${counters.narrateOk}`,
+      `navifi_narrate_requests_total{result="fail"} ${counters.narrateFail}`,
+      '# TYPE navifi_llm_configured gauge',
+      `navifi_llm_configured ${LLM_URL ? 1 : 0}`,
+      '',
+    ].join('\n'),
+  );
 });
 
 app.post('/api/audit', (req, res) => {
   const e = req.body as ChainEntry;
   const valid = typeof e?.hash === 'string' && entryHash(e) === e.hash;
+  counters[valid ? 'auditAccepted' : 'auditRejected']++;
   fs.appendFileSync(AUDIT, `${JSON.stringify({ ...e, serverVerified: valid, receivedAt: new Date().toISOString() })}\n`);
   res.status(valid ? 200 : 422).json({ ok: valid });
 });
@@ -72,10 +99,15 @@ app.post('/api/narrate', async (req, res) => {
       }),
       signal: AbortSignal.timeout(12000),
     });
-    if (!r.ok) return res.status(502).json({ error: `llm ${r.status}` });
+    if (!r.ok) {
+      counters.narrateFail++;
+      return res.status(502).json({ error: `llm ${r.status}` });
+    }
     const j = (await r.json()) as { choices?: { message?: { content?: string } }[] };
+    counters.narrateOk++;
     res.json({ text: j.choices?.[0]?.message?.content?.trim() ?? '', model: LLM_MODEL });
   } catch (err) {
+    counters.narrateFail++;
     res.status(504).json({ error: String(err) });
   }
 });

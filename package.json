@@ -1,6 +1,6 @@
 {
   "name": "navifi",
-  "version": "0.1.0",
+  "version": "0.9.3",
   "private": true,
   "description": "NAVIFI - Fleet Mission Consequence Engine. Deterministic, human-controlled mission readiness decision support for the tactical edge.",
   "type": "module",
@@ -8,9 +8,11 @@
     "dev": "concurrently -k -n edge,web -c cyan,magenta \"pnpm dev:server\" \"pnpm dev:web\"",
     "dev:web": "vite --host",
     "dev:server": "tsx watch --clear-screen=false server/index.ts",
-    "build": "vite build",
-    "start": "NODE_ENV=production tsx server/index.ts",
+    "build": "vite build && vite build -c vite.server.config.ts",
+    "start": "NODE_ENV=production node dist-server/index.mjs",
     "test": "vitest run",
+    "oscal": "tsx ci/gen-oscal.ts",
+    "ai-review": "node ci/ai-review.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

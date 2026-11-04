@@ -1,0 +1,8 @@
+domain: "###ZARF_VAR_DOMAIN###"
+persistence:
+  size: "###ZARF_VAR_AUDIT_STORAGE###"
+uds:
+  enabled: true
+  sso: true
+llm:
+  url: ""

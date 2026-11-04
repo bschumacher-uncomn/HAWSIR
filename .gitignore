@@ -1,8 +1,9 @@
-data/runtime
-dist
+*.log
 .DS_Store
 .env
-*.log
-node_modules
 .pnpm-store
 .shots
+data/runtime
+dist
+dist-server
+node_modules

@@ -200,7 +200,7 @@ function Pipeline() {
           </div>
         );
       })}
-      <div className="mt-1 border-t border-sky-300/10 pt-1.5 font-mono text-[9.5px] text-mute">AI review is advisory; merge requires a human. Pipeline: .github/workflows/ci.yml · .gitlab-ci.yml · zarf.yaml (in repo)</div>
+      <div className="mt-1 border-t border-sky-300/10 pt-1.5 font-mono text-[9.5px] text-mute">Representative run, timings illustrative. AI review is advisory; merge requires a human. Defined in .github/workflows/ci.yml · .gitlab-ci.yml · zarf.yaml</div>
     </Panel>
   );
 }

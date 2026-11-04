@@ -1,0 +1,144 @@
+# Pin third-party actions to commit SHAs before use in an accredited factory.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  ai-review:
+    name: AI review (advisory)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node ci/ai-review.mjs
+        env:
+          AI_REVIEW_URL: ${{ secrets.AI_REVIEW_URL }}
+          AI_REVIEW_KEY: ${{ secrets.AI_REVIEW_KEY }}
+          AI_REVIEW_MODEL: ${{ vars.AI_REVIEW_MODEL }}
+          BASE_REF: origin/${{ github.base_ref }}
+      - uses: actions/upload-artifact@v4
+        with: { name: ai-review, path: ai-review.md }
+
+  test:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: OSCAL artifact matches the controls in source
+        run: pnpm oscal && git diff --exit-code compliance/
+
+  sast:
+    name: Static analysis (Semgrep)
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep scan --config p/typescript --config p/secrets --config p/dockerfile --error
+
+  image:
+    name: Image, SBOM, CVE scan, sign
+    needs: [test, sast]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:0.9.3
+          build-args: |
+            BUILD_IMAGE=${{ vars.BUILD_IMAGE || 'registry.access.redhat.com/ubi9/nodejs-20:latest' }}
+            RUNTIME_IMAGE=${{ vars.RUNTIME_IMAGE || 'registry.access.redhat.com/ubi9/nodejs-20-minimal:latest' }}
+      - name: SBOM (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE }}:${{ github.sha }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: CVE scan (Grype)
+        uses: anchore/scan-action@v4
+        with:
+          image: ${{ env.IMAGE }}:${{ github.sha }}
+          fail-build: true
+          severity-cutoff: high
+      - uses: sigstore/cosign-installer@v3
+        if: github.event_name != 'pull_request'
+      - name: Sign and attest (keyless)
+        if: github.event_name != 'pull_request'
+        run: |
+          ref="${IMAGE}@${{ steps.build.outputs.digest }}"
+          cosign sign --yes "$ref"
+          cosign attest --yes --type spdxjson --predicate sbom.spdx.json "$ref"
+      - uses: actions/upload-artifact@v4
+        with: { name: sbom, path: sbom.spdx.json }
+
+  compliance:
+    name: Deploy to UDS k3d + Lula validate
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up uds-cli, zarf, k3d
+        uses: defenseunicorns/uds-common/.github/actions/setup@main
+      - run: uds deploy k3d-core-slim-dev:0.29.1 --confirm
+      - run: zarf package create . --confirm -o build/
+      - run: zarf package deploy build/zarf-package-navifi-*.tar.zst --confirm
+      - name: Lula validate
+        uses: defenseunicorns/lula-action/setup@main
+      - run: lula validate -f compliance/oscal-component.yaml -o build/assessment-results.yaml
+      - uses: actions/upload-artifact@v4
+        with: { name: oscal-assessment, path: build/assessment-results.yaml }
+
+  bundle:
+    name: Air-gap bundle
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: defenseunicorns/uds-common/.github/actions/setup@main
+      - run: zarf package create . --confirm -o build/
+      - run: uds create . --confirm -o build/
+      - uses: actions/upload-artifact@v4
+        with: { name: navifi-ship-bundle, path: build/uds-bundle-*.tar.zst }

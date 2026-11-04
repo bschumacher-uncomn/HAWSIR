@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { SCENARIOS, scenarioById } from '@/data/scenarios';
 import { dtg, fmtDur, fmtT } from '@/engine/time';
 import { useEngine, type EventImpact } from '@/state/engine';
@@ -476,8 +476,32 @@ export function EventFlash() {
   );
 }
 
+function useHotkeys() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement;
+      if (el.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const i = Number(e.key) - 1;
+      if (Number.isInteger(i) && i >= 0 && i < NAV.length) {
+        navigate(NAV[i].to + location.search);
+        return;
+      }
+      if (e.key === ' ' && !el.closest('button')) {
+        e.preventDefault();
+        const st = useStore.getState();
+        if (!st.halted) st.setPlaying(!st.playing);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navigate]);
+}
+
 export function Layout({ children }: { children: ReactNode }) {
   usePlayer();
+  useHotkeys();
   return (
     <div className="ocean-bg relative flex h-full flex-col">
       <div className="grid-bg pointer-events-none absolute inset-0" />
