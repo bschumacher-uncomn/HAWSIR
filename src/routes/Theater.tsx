@@ -38,8 +38,9 @@ export default function Theater() {
   const phase = scenario.phases.find((p) => at >= p.start && at < p.end);
   const area = scenario.missionArea;
   const view = scenario.mapView ?? ATLANTIC_VIEW;
-  // constant on-screen radar size regardless of the scenario's zoom
-  const radarKm = RADAR_KM * 2 ** (ATLANTIC_VIEW.zoom - view.zoom);
+  // constant on-screen glyph sizes regardless of the scenario's zoom
+  const kmScale = 2 ** (ATLANTIC_VIEW.zoom - view.zoom);
+  const radarKm = RADAR_KM * kmScale;
 
   const arrays = ARRAYS.filter((a) => hasGeo && nodes[a.id]).map((a) => {
     const up = (result.nodes[a.id]?.ready ?? Infinity) <= at + 1e-6;
@@ -169,7 +170,7 @@ export default function Theater() {
     }),
     new SolidPolygonLayer({
       id: 'ship',
-      data: [[offset(ship.pos, 55, ship.heading), offset(ship.pos, 30, ship.heading + 140), ship.pos, offset(ship.pos, 30, ship.heading - 140)] as LonLat[]],
+      data: [[offset(ship.pos, 55 * kmScale, ship.heading), offset(ship.pos, 30 * kmScale, ship.heading + 140), ship.pos, offset(ship.pos, 30 * kmScale, ship.heading - 140)] as LonLat[]],
       getPolygon: (d) => d,
       getFillColor: [255, 255, 255, 255],
     }),

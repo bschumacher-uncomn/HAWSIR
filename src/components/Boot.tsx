@@ -10,7 +10,7 @@ const LINES: { tag: 'OK' | '--' | 'AI' | '!!'; text: string; sub?: string }[] = 
   { tag: 'OK', text: 'Zarf package navifi:0.9.3', sub: 'cosign signature verified · SBOM attested (412 components) · 0 critical CVEs' },
   { tag: 'OK', text: 'Lula OSCAL assessment', sub: '47/48 NIST 800-53 controls satisfied (AU · AC · SC · SI · CM)' },
   { tag: 'OK', text: 'Data adapters (read-only)', sub: 'OMMS-NG · R-Supply · NSIPS · SKED · DRRS-N · AMHS · CMS · HSM' },
-  { tag: 'OK', text: 'Deterministic consequence engine', sub: 'self-test 27/27 · critical chain · slack · Monte Carlo (seeded)' },
+  { tag: 'OK', text: 'Deterministic consequence engine', sub: 'self-test 39/39 · critical chain · slack · Monte Carlo (seeded)' },
   { tag: 'AI', text: 'Local LLM (in-cluster, OpenAI-compatible API)', sub: 'advisory narrative only · never source of operational truth' },
   { tag: '--', text: 'Shore link SATCOM 2.1 Mbps', sub: 'store-and-forward armed · core workflow runs fully disconnected' },
   { tag: '!!', text: 'HUMAN AUTHORITY ENFORCED', sub: 'agent may analyze, explain, propose · may not order, direct, authorize or modify records' },

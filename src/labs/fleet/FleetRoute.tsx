@@ -9,10 +9,10 @@ import type { Readiness } from '@/engine/types';
 import { useStore } from '@/state/store';
 import { Panel, StatusBadge, Ticker } from '@/components/ui';
 import { cn, STATUS_COLOR, STATUS_WORD } from '@/lib/util';
-import { CAP_LABEL, DISRUPTIONS, FLEET_NAME, MISSIONS, PLACES, SHIPS, type FleetId, type Issue, type MissionSpec } from '@/data/fleet';
-import { buildFleet, FLEET_Q, type FleetMission, type FleetPackage, type FleetPicture, type FleetShip, type PkgTone, type ShipStatus } from '@/features/fleet/model';
-import { useFleet } from '@/features/fleet/store';
-import { alongPath, gcArc, gcKm, landDots, OCEAN, type LonLatZ } from '@/features/fleet/globe';
+import { CAP_LABEL, DISRUPTIONS, FLEET_NAME, MISSIONS, PLACES, SHIPS, type FleetId, type Issue, type MissionSpec } from './data';
+import { buildFleet, FLEET_Q, type FleetMission, type FleetPackage, type FleetPicture, type FleetShip, type PkgTone, type ShipStatus } from './model';
+import { useFleet } from './store';
+import { alongPath, gcArc, gcKm, landDots, OCEAN, type LonLatZ } from './globe';
 import { GRATICULE, LAND, offset, ring, type LonLat } from '@/features/theater/geo';
 
 type RGBA = [number, number, number, number];
@@ -706,7 +706,9 @@ export default function Fleet() {
 
       <div className="pointer-events-none absolute left-3 top-3 w-[360px]">
         <div className="hud pointer-events-auto px-3 py-2">
-          <div className="label !text-[9px] !text-calc/80">Global fleet picture · synthetic data</div>
+          <div className="label !text-[9px] !text-calc/80">
+            <span className="mr-1.5 rounded-[2px] border border-dashed border-ai/60 px-1 text-ai">LABS</span>Global fleet picture · synthetic data
+          </div>
           <div className="font-display text-[15px] font-bold tracking-[0.18em] text-white">FLEET MISSION CONSEQUENCES</div>
           <div className="mt-1 flex flex-wrap gap-x-3 font-mono text-[10px] text-sky-200/70">
             <span>

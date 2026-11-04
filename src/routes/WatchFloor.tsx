@@ -15,7 +15,7 @@ const HoloShip = lazy(() => import('@/features/ship/HoloShip').then((m) => ({ de
 function ShipStage() {
   const { nodes, result, at, scenario, cap } = useEngine();
   const selectCap = useStore((s) => s.selectCap);
-  const parts = useMemo(() => shipParts(nodes, result, at, (t) => fmtT(scenario, t)), [nodes, result, at, scenario]);
+  const parts = useMemo(() => shipParts(nodes, result, at, (t) => fmtT(scenario, t), scenario.partLabels), [nodes, result, at, scenario]);
   const focus = useMemo(() => {
     const set = new Set<ShipPart>();
     if (!cap) return set;

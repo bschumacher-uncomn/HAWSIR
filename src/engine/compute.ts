@@ -220,6 +220,10 @@ export function compute(s: Pick<Scenario, 'thresholds'>, nodes: NodeMap, at: Hou
         break;
       }
     }
+    if (n.kind === 'task' && n.staleAfter && n.sources?.length) {
+      const asOf = Math.max(...n.sources.map((x) => x.asOf));
+      if (at - asOf > n.staleAfter && r!.ready > at) r!.flags.push('stale');
+    }
     res[id] = r!;
   }
 
@@ -310,7 +314,8 @@ function controllingFor(chain: string[], nodes: NodeMap, res: Record<string, Nod
   }
   if (root.kind === 'person') {
     const parent = chain.length > 1 ? nodes[chain[chain.length - 2]] : undefined;
-    const iv = (root.unavailable ?? []).find((x) => Math.abs(x.end - rr.ready) < EPS);
+    const until = (parent && res[parent.id]?.start) ?? rr.ready;
+    const iv = (root.unavailable ?? []).find((x) => Math.abs(x.end - until) < EPS);
     return {
       nodeId: rootId,
       kind: 'person',

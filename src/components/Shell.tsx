@@ -3,7 +3,6 @@ import {
   CalendarRange,
   Cpu,
   Dices,
-  Earth,
   FastForward,
   FlaskConical,
   Globe,
@@ -18,7 +17,9 @@ import {
   Server,
   ShieldCheck,
   SkipForward,
+  TestTube,
   WifiOff,
+  Workflow,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -34,7 +35,7 @@ import { Tour } from './Tour';
 import { RadarSweep } from './ui';
 
 const NAV = [
-  { to: '/fleet', icon: Earth, label: 'Fleet Picture', hint: 'Global missions' },
+  { to: '/thread', icon: Workflow, label: 'Mission Thread', hint: 'Executable thread' },
   { to: '/', icon: Radar, label: 'Watch Floor', hint: 'Five answers' },
   { to: '/graph', icon: Network, label: 'Consequence Graph', hint: 'What controls' },
   { to: '/horizon', icon: CalendarRange, label: 'Readiness Horizon', hint: '21-day risk' },
@@ -282,6 +283,14 @@ export function NavRail() {
         </NavLink>
       ))}
       <div className="mt-auto flex flex-col items-center gap-2 pb-1">
+        <NavLink
+          to="/labs/fleet"
+          title="Labs: experimental fleet globe (not part of the demo path)"
+          className={({ isActive }) => cn('flex flex-col items-center gap-0.5 rounded-[3px] border border-dashed px-1.5 py-1 transition', isActive ? 'border-ai/60 text-ai' : 'border-sky-300/15 text-sky-300/35 hover:text-ai')}
+        >
+          <TestTube size={13} />
+          <span className="font-display text-[7.5px] font-semibold tracking-[0.14em]">LABS</span>
+        </NavLink>
         <ShieldCheck size={16} className="text-ok/70" />
         <span className="font-mono text-[8px] text-ok/60">IL5</span>
       </div>

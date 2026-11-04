@@ -16,6 +16,8 @@ export interface Line {
 
 const latest = (n?: NodeDef) => (n?.sources?.length ? [...n.sources].sort((a, b) => b.asOf - a.asOf)[0] : undefined);
 const refsOf = (n?: NodeDef) => (latest(n) ? [latest(n)!] : []);
+/** Lower-case the first letter only, so acronyms (CIC, VLS, SPY) survive mid-sentence. */
+const lc = (t: string) => (/^[A-Z][a-z]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t);
 
 export function describePatch(s: Scenario, before: NodeMap, after: NodeMap, p: Patch): Line | null {
   if (p.op === 'remove') return { kind: 'change', text: `Removed ${before[p.id]?.label ?? p.id}`, refs: [], nodeIds: [p.id], tone: 'info' };
@@ -171,17 +173,18 @@ export function explainCapability(
     const upstream = r.nodes[root.deps?.[0] ?? '']?.ready;
     lines.push({
       kind: 'control',
-      text: `Controlling constraint: ${w?.label ?? 'delivery window'}. Upstream ready ${fmtT(s, upstream ?? waitFrom)}, but ${root.label.toLowerCase()} cannot happen before ${fmtT(s, w?.start ?? rr.ready)}.${missedTxt}`,
+      text: `Controlling constraint: ${w?.label ?? 'delivery window'}. Upstream ready ${fmtT(s, upstream ?? waitFrom)}, but ${lc(root.label)} cannot happen before ${fmtT(s, w?.start ?? rr.ready)}.${missedTxt}`,
       refs: refsOf(nodes[root.deps?.[0] ?? '']),
       nodeIds: [root.id, ...(root.deps ?? [])],
       tone: 'warn',
     });
   } else if (ctl.kind === 'person' && root) {
-    const iv = (root.unavailable ?? []).find((x) => Math.abs(x.end - (rr?.ready ?? 0)) < 1e-6);
     const task = c.chain.map((id) => nodes[id]).find((n) => n?.crew?.pool.includes(root.id));
+    const until = (task && r.nodes[task.id]?.start) ?? rr?.ready ?? 0;
+    const iv = (root.unavailable ?? []).find((x) => Math.abs(x.end - until) < 1e-6);
     lines.push({
       kind: 'control',
-      text: `Controlling constraint: ${task?.crew?.label ?? 'qualified crew'} (need ${task?.crew?.k ?? '?'}). ${root.label} is ${iv?.reason?.toLowerCase() ?? 'not available'} until ${fmtT(s, rr?.ready ?? 0)}, so ${task?.label.toLowerCase() ?? 'the task'} cannot start earlier.`,
+      text: `Controlling constraint: ${task?.crew?.label ?? 'qualified crew'} (need ${task?.crew?.k ?? '?'}). ${root.label} is ${iv?.reason ? lc(iv.reason) : 'not available'} until ${fmtT(s, until)}, so ${task ? lc(task.label) : 'the task'} cannot start earlier.`,
       refs: refsOf(root),
       nodeIds: [root.id, task?.id ?? ''],
       tone: 'warn',

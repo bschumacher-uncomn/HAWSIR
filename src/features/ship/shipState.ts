@@ -39,7 +39,13 @@ export interface PartState {
 
 const SYSTEM_KINDS = new Set(['input', 'all', 'kofn', 'gate']);
 
-export function shipParts(nodes: NodeMap, r: EngineResult, at: number, fmt?: (t: number) => string): Partial<Record<ShipPart, PartState>> {
+export function shipParts(
+  nodes: NodeMap,
+  r: EngineResult,
+  at: number,
+  fmt?: (t: number) => string,
+  labels: Partial<Record<ShipPart, string>> = {},
+): Partial<Record<ShipPart, PartState>> {
   const groups: Partial<Record<ShipPart, string[]>> = {};
   for (const n of Object.values(nodes)) {
     if (!n.part || n.part === 'crew' || !SYSTEM_KINDS.has(n.kind)) continue;
@@ -68,7 +74,7 @@ export function shipParts(nodes: NodeMap, r: EngineResult, at: number, fmt?: (t:
       up: down.length === 0,
       partial: down.length > 0 && kofnOk,
       sev: down.length === 0 ? (flagged ? 'warn' : 'ok') : kofnOk ? 'warn' : worst,
-      label: PART_LABEL[part],
+      label: labels[part] ?? PART_LABEL[part],
       eta: down.length ? Math.max(...down.map((id) => r.nodes[id].ready)) : undefined,
       capIds,
       nodeIds: ids,

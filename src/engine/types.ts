@@ -11,6 +11,8 @@ export type SourceSystem =
   | 'DLA-TRACK'
   | 'NAVSEA'
   | 'HSM-SQDN'
+  | 'HSC-DET'
+  | 'MVCS'
   | 'CMS'
   | 'WATCHBILL'
   | 'AMC'
@@ -147,6 +149,8 @@ export interface ChangeEvent {
   detail: string;
   source: SourceRef;
   patches: Patch[];
+  /** What a traditional status board would show for this report. */
+  board?: { system: string; status: 'DEGRADED' | 'FAULT' | 'CONSTRAINT' | 'DOWN' };
 }
 
 export interface Lever {
@@ -202,6 +206,51 @@ export interface Scenario {
   missionArea?: { name: string; lon: number; lat: number; radiusKm: number };
   /** Theater camera; defaults to the Atlantic crossing view. */
   mapView?: { longitude: number; latitude: number; zoom: number };
+  /** Hand-laid executable mission thread; scenarios without one get an auto-laid thread. */
+  thread?: ThreadSpec;
+  /** Digital-twin labels for hulls whose systems differ from the DDG defaults. */
+  partLabels?: Partial<Record<ShipPart, string>>;
+}
+
+export interface ThreadLane {
+  id: string;
+  label: string;
+  sub?: string;
+  color: string;
+}
+
+export type ThreadStepKind = 'start' | 'task' | 'gate' | 'decision' | 'end' | 'branch';
+
+export interface ThreadStep {
+  id: string;
+  kind: ThreadStepKind;
+  label: string;
+  lane: string;
+  col: number;
+  /** Engine node that times this step (start/ready/wait). */
+  node?: string;
+  /** Performer callsign carried on the token while the step runs. */
+  actor?: string;
+  /** Resource nodes (inputs, people) shown as status chips. */
+  needs?: string[];
+  note?: string;
+}
+
+export interface ThreadLink {
+  from: string;
+  to: string;
+  /** What travels on the handoff (data product, aircraft, report). */
+  cargo?: string;
+  branch?: 'yes' | 'no';
+}
+
+export interface ThreadSpec {
+  name: string;
+  lanes: ThreadLane[];
+  steps: ThreadStep[];
+  links: ThreadLink[];
+  /** One-line point the thread makes. */
+  thesis?: string;
 }
 
 /** A physical movement (part, person, aircraft, data) whose arrival is an engine node. */

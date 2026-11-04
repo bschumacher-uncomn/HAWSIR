@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DISRUPTIONS } from '@/data/fleet';
+import { DISRUPTIONS } from './data';
 import { buildFleet, type FleetPicture } from './model';
 
 const status = (p: FleetPicture) => Object.fromEntries(p.missions.map((m) => [m.spec.id, m.status]));

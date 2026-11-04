@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { Boot } from './components/Boot';
 import { Layout } from './components/Shell';
@@ -8,7 +8,8 @@ import { EngineProvider } from './state/engine';
 import { useStore } from './state/store';
 import { WatchFloor } from './routes/WatchFloor';
 
-const Fleet = lazy(() => import('./routes/Fleet'));
+const FleetLab = lazy(() => import('./labs/fleet/FleetRoute'));
+const MissionThread = lazy(() => import('./routes/MissionThread'));
 const GraphView = lazy(() => import('./routes/GraphView'));
 const Horizon = lazy(() => import('./routes/Horizon'));
 const Simulate = lazy(() => import('./routes/Simulate'));
@@ -67,7 +68,9 @@ export function App() {
             <Suspense fallback={<Loading />}>
               <Routes>
                 <Route path="/" element={<WatchFloor />} />
-                <Route path="/fleet" element={<Fleet />} />
+                <Route path="/thread" element={<MissionThread />} />
+                <Route path="/labs/fleet" element={<FleetLab />} />
+                <Route path="/fleet" element={<Navigate to={`/labs/fleet${location.search}`} replace />} />
                 <Route path="/graph" element={<GraphView />} />
                 <Route path="/horizon" element={<Horizon />} />
                 <Route path="/sim" element={<Simulate />} />

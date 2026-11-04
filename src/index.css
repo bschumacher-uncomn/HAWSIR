@@ -232,6 +232,31 @@ body {
   background-size: 200% 100%;
   animation: shimmer 2.2s linear infinite;
 }
+@keyframes thread-packet {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  10%,
+  88% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+.thread-packet {
+  offset-rotate: 0deg;
+  offset-distance: 0%;
+  opacity: 0;
+  animation-name: thread-packet;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  animation-fill-mode: both;
+}
+.hatch-crit {
+  background-image: repeating-linear-gradient(-45deg, rgba(251, 59, 92, 0.55) 0 3px, rgba(251, 59, 92, 0.12) 3px 7px);
+}
 
 /* ---------- React Flow skin ---------- */
 .react-flow__attribution {

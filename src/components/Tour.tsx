@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { create } from 'zustand';
 import { scenarioById } from '@/data/scenarios';
-import { useFleet } from '@/features/fleet/store';
 import { useStore } from '@/state/store';
 
 interface Step {
@@ -13,16 +12,16 @@ interface Step {
   ms: number;
   /** Replays the change stream; the step ends when playback does (or at `ms`). */
   replay?: boolean;
-  fleet?: { active: string[]; mission: string | null };
+  speed?: number;
+  scenario?: string;
 }
 
-const TOUR_SCENARIO = 'ddg21';
 const REPLAY_SPEED = 24;
 
 const STEPS: Step[] = [
-  { to: '/fleet', title: 'Global fleet picture', caption: '38 hulls, 12 missions and 150 parts, people and data packages in motion. Every arc is timed by the same deterministic engine: how much slack before it breaks its mission.', ms: 11_000, fleet: { active: [], mission: null } },
-  { to: '/fleet', title: 'What-if: AMC stand-down', caption: 'One airlift stand-down re-times every package in a fraction of a second. Five missions go NOT READY; CSG-14 is now controlled by F414 engines that can only make the third COD run.', ms: 13_000, fleet: { active: ['amc'], mission: 'csg14' } },
-  { to: '/', title: 'Watch floor', caption: 'Drill into one hull. Each feed change is recomputed on the edge node. Watch the change stream: the CASREP lands, the part slips, the technicians leave.', ms: 120_000, replay: true, fleet: { active: [], mission: null } },
+  { to: '/thread', scenario: 'mcm', title: 'Executable mission thread', caption: 'Operation Open Passage: an LCS clears the approach before a task group transit. USV sonar and MH-60S run in parallel, and both evidence sets converge on one qualified reviewer. Watch the reports land.', ms: 60_000, replay: true, speed: 12 },
+  { to: '/thread', title: 'Four reports, one controls', caption: 'USV +30 min eats margin. Helo +45 min is absorbed by slack. The comms fault flags data freshness. Only the reviewer gap puts the assessment 1h 15m late.', ms: 11_000 },
+  { to: '/', scenario: 'ddg21', title: 'Watch floor', caption: 'Same engine, a destroyer 21 days from deployment. Each feed change is recomputed on the edge node: the CASREP lands, the part slips, the technicians leave.', ms: 120_000, replay: true },
   { to: '/', title: 'Five answers, one screen', caption: 'What changed, what it affects, what controls readiness, margin and certainty, and bounded options. AMD is Q, and FC1 Martinez controls it.', ms: 10_000 },
   { to: '/graph', title: 'Consequence graph', caption: 'The critical chain from feeds to capability, with upstream slack and mission margin on every node.', ms: 9_000 },
   { to: '/horizon', title: 'Readiness horizon', caption: 'Know before it breaks the mission: projected readiness against each phase, and every act-by deadline.', ms: 9_000 },
@@ -41,16 +40,13 @@ export const useTour = create<{ on: boolean; start: () => void; stop: () => void
 
 function enterStep(step: Step, first: boolean) {
   const st = useStore.getState();
-  if (first) {
-    if (st.scenarioId !== TOUR_SCENARIO) st.setScenario(TOUR_SCENARIO);
-    st.resetSession();
-  }
-  if (step.fleet) useFleet.setState({ ...step.fleet, ship: null });
+  if (step.scenario && st.scenarioId !== step.scenario) st.setScenario(step.scenario);
+  if (first) st.resetSession();
   if (step.replay) {
-    const s = scenarioById(TOUR_SCENARIO);
+    const s = scenarioById(useStore.getState().scenarioId);
     st.focusEvent(null);
-    st.setWatchTime(s.watchStart - 1);
-    st.setSpeed(REPLAY_SPEED);
+    st.setWatchTime(s.watchStart - (s.timeScale === 'hours' ? 0.25 : 1));
+    st.setSpeed(step.speed ?? REPLAY_SPEED);
     st.setPlaying(true);
   }
 }

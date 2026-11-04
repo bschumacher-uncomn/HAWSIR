@@ -18,7 +18,7 @@ import {
   type MissionSpec,
   type Mode,
   type ShipSpec,
-} from '@/data/fleet';
+} from './data';
 import { positionAt } from '@/features/theater/geo';
 
 /** Fleet-level Q threshold: a mission or ship with less than this margin is rated Q. */

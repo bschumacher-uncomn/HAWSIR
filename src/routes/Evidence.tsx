@@ -13,7 +13,7 @@ import { CASES, runCase, type CaseResult } from '@/features/evidence/cases';
 const CRITERIA = [
   { w: 30, name: 'Warfighting / deckplate', items: [['Five answers on one screen', '/'], ['Controlling constraint + slack vs margin', '/graph'], ['Bounded options, human decides', '/']] },
   { w: 20, name: 'Speed to fleet / DDIL', items: [['Answer in milliseconds, aboard', '/evidence'], ['Works disconnected, syncs later', '/log'], ['Zarf + UDS air-gap bundle', '/edge']] },
-  { w: 20, name: 'Fleet scalability', items: [['38 hulls, 12 missions, 150 packages: one engine', '/fleet'], ['Three workflows, one engine: deploy, reload, repair', '/'], ['RKE2 edge node per hull', '/edge']] },
+  { w: 20, name: 'Fleet scalability', items: [['Mission threads are data: MCM, reload, repair, deploy', '/thread'], ['Three workflows, one engine: deploy, reload, repair', '/'], ['RKE2 edge node per hull', '/edge']] },
   { w: 15, name: 'Barrier removal', items: [['Read-only to authoritative systems', '/log'], ['OSCAL + Lula compliance evidence', '/edge'], ['SBOM, signed images, Iron Bank base', '/edge']] },
   { w: 15, name: "Judges' discretion", items: [['Monte Carlo of 2,000 futures', '/sim'], ['Live theater picture', '/theater'], ['Tamper-evident audit', '/log']] },
 ] as const;
@@ -51,6 +51,8 @@ const SYSTEM_ROLE: Record<string, string> = {
   'DLA-TRACK': 'Shipment tracking',
   NAVSEA: 'Technical authority',
   'HSM-SQDN': 'Aviation detachment',
+  'HSC-DET': 'MH-60S detachment',
+  MVCS: 'Unmanned vehicle control & data link',
   CMS: 'COMSEC material',
   WATCHBILL: 'Watch / quals',
   AMC: 'Airlift tracking',

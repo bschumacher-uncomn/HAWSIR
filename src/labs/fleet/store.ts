@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { DISRUPTIONS } from '@/data/fleet';
+import { DISRUPTIONS } from './data';
 import { useStore } from '@/state/store';
 
 interface FleetUi {
