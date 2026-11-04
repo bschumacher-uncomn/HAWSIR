@@ -1,0 +1,8 @@
+data/runtime
+dist
+.DS_Store
+.env
+*.log
+node_modules
+.pnpm-store
+.shots
