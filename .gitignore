@@ -7,3 +7,4 @@ data/runtime
 dist
 dist-server
 node_modules
+*.tsbuildinfo
