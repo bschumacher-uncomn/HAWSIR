@@ -32,7 +32,9 @@ pnpm install && pnpm dev     # http://localhost:5310
 | Evidence | Live failure-case matrix, judge challenge stopwatch, baseline vs assisted, 30/60/90 |
 | Edge Platform | RHEL 9 → RKE2 → UDS Core stack (live), AI-assisted CI/CD, DDIL, OSCAL, fleet rollout |
 
-Keyboard: `1`–`8` switch screens, `Space` play/pause the change stream, `Shift+R` reset the session (clears approvals, what-ifs and the local log; the edge copy is kept).
+Keyboard: `1`–`8` switch screens, `Space` play/pause the change stream, `Shift+R` reset the session (clears approvals, what-ifs and the local log; the edge copy is kept), `T` attract mode.
+
+Attract mode (`T`, or open `http://localhost:5310/?noboot&tour` on a booth monitor) resets the session, replays the change stream on the Watch Floor, then cycles every screen with a caption. Any key or click hands the watch back.
 
 ## Three-minute demo
 

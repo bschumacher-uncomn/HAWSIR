@@ -29,6 +29,7 @@ import { useEngine, type EventImpact } from '@/state/engine';
 import { useFlash } from '@/state/flash';
 import { useStore, type LinkMode } from '@/state/store';
 import { cn } from '@/lib/util';
+import { Tour } from './Tour';
 import { RadarSweep } from './ui';
 
 const NAV = [
@@ -522,6 +523,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="noise pointer-events-none fixed inset-0 z-[61]" />
       <HaltOverlay />
       <EventFlash />
+      <Tour />
     </div>
   );
 }
