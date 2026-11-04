@@ -46,6 +46,8 @@ Before each run, open `http://localhost:5310/?reset` (or press `Shift+R`) so ear
 6. **Decision Log (2:35).** Verify the chain, simulate a tamper, restore from the edge copy. "Who decided what, on which facts, provably."
 7. **Evidence (2:50).** "Twelve failure cases, run live. Judges: pick any input and time it."
 
+**If asked about scale:** pick **VLS reload · 72h** in the header. Different hull (DDG-173), port, and workflow, but the same engine and screens. A 12-hour C-17 slip costs 17 hours of margin because the ordnance misses Marathi berth slot A. Then the chief who supervises ordnance handling goes on light duty and takes control (AMD −2h). Chartering the airlift alone recovers nothing; adding a cross-decked supervisor from CG-176 recovers 15 hours.
+
 ## Engineering
 
 - Deterministic engine with 19 tests (`pnpm test`), including the classic example: part 1200, team 1400, 3 h repair, required 1800 → ready 1700 with 1 h margin; part to 1330 has no consequence; team to 1600 misses by 1 h.

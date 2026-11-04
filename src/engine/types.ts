@@ -176,6 +176,8 @@ export interface MissionPhase {
 export interface Scenario {
   id: string;
   name: string;
+  /** Header picker label. */
+  short: string;
   tagline: string;
   timeScale: 'days' | 'hours';
   /** Calendar day index (from epoch) that is labeled D-0. */

@@ -147,8 +147,8 @@ function Clock() {
         className="max-w-[170px] rounded-[3px] border border-sky-300/15 bg-black/40 px-1.5 py-1 font-display text-[10.5px] uppercase tracking-wider text-sky-200 outline-none"
       >
         {SCENARIOS.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
+          <option key={s.id} value={s.id} title={s.name}>
+            {s.short}
           </option>
         ))}
       </select>

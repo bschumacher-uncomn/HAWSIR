@@ -157,6 +157,7 @@ const cfaWindows = [
 export const ddg21: Scenario = {
   id: 'ddg21',
   name: 'DDG Readiness, 21 Days to Tasking',
+  short: 'DDG readiness · 21d',
   tagline: 'Know before it breaks the mission',
   timeScale: 'days',
   dDay: DDAY,

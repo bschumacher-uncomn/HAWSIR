@@ -6,6 +6,7 @@ const src = (system: SourceRef['system'], recordId: string, asOf: number, value?
 export const classic: Scenario = {
   id: 'classic',
   name: 'Radar Repair Before Tasking',
+  short: 'Radar repair · 10h',
   tagline: 'What actually controls the outcome?',
   timeScale: 'hours',
   dDay: 0,

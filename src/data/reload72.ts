@@ -129,6 +129,7 @@ const nodes: NodeDef[] = [
 export const reload72: Scenario = {
   id: 'reload72',
   name: 'VLS Reload, 72 Hours to Station',
+  short: 'VLS reload · 72h',
   tagline: 'Same engine, different workflow',
   timeScale: 'days',
   dDay: DDAY,
