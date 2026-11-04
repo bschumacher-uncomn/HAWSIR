@@ -3,7 +3,7 @@ kind: ZarfPackageConfig
 metadata:
   name: navifi
   description: NAVIFI mission consequence engine for shipboard RKE2 + UDS Core (air-gapped)
-  version: 0.9.3
+  version: 0.10.0
   url: https://github.com/navifi/navifi
   architecture: amd64
 
@@ -22,12 +22,12 @@ components:
     charts:
       - name: navifi
         namespace: navifi
-        version: 0.9.3
+        version: 0.10.0
         localPath: deploy/chart/navifi
         valuesFiles:
           - deploy/values/zarf-values.yaml
     images:
-      - ghcr.io/navifi/navifi:0.9.3
+      - ghcr.io/navifi/navifi:0.10.0
     actions:
       onDeploy:
         after:
@@ -45,7 +45,7 @@ components:
     charts:
       - name: navifi-narrator
         namespace: navifi
-        version: 0.9.3
+        version: 0.10.0
         localPath: deploy/chart/navifi
         valuesFiles:
           - deploy/values/zarf-narrator-values.yaml

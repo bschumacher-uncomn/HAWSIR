@@ -34,8 +34,8 @@ Endpoints: `GET /api/health`, `GET /api/metrics` (Prometheus), `GET|POST /api/au
 ## Container
 
 ```bash
-docker build -t navifi:0.9.3 .
-docker run -p 8810:8810 -v navifi-audit:/data navifi:0.9.3
+docker build -t navifi:0.10.0 .
+docker run -p 8810:8810 -v navifi-audit:/data navifi:0.10.0
 ```
 
 UBI9 base by default; pass `BUILD_IMAGE` / `RUNTIME_IMAGE` build args to use Iron Bank images. Runs as UID 1001, read-only root filesystem compatible, health check on `/api/health`.
@@ -68,7 +68,7 @@ uds create . --confirm
 Aboard, disconnected:
 
 ```bash
-uds deploy uds-bundle-navifi-ship-amd64-0.9.3.tar.zst --confirm
+uds deploy uds-bundle-navifi-ship-amd64-0.10.0.tar.zst --confirm
 ```
 
 The bundle carries Zarf init, UDS Core and NAVIFI. The optional `narrator` component ships model weights inside the package, so nothing is downloaded at sea.

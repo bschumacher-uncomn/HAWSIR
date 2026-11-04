@@ -85,7 +85,7 @@ jobs:
           load: ${{ github.event_name == 'pull_request' }}
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:0.9.3
+            ${{ env.IMAGE }}:0.10.0
           build-args: |
             BUILD_IMAGE=${{ vars.BUILD_IMAGE || 'registry.access.redhat.com/ubi9/nodejs-20:latest' }}
             RUNTIME_IMAGE=${{ vars.RUNTIME_IMAGE || 'registry.access.redhat.com/ubi9/nodejs-20-minimal:latest' }}

@@ -5,7 +5,7 @@ component-definition:
   metadata:
     title: NAVIFI on UDS Core
     last-modified: "2026-11-03T00:00:00Z"
-    version: "0.9.3"
+    version: "0.10.0"
     oscal-version: 1.1.2
   components:
     - uuid: 62778950-a07b-580e-946c-dfe03dd45a41

@@ -55,12 +55,12 @@ export const PIPELINE: Stage[] = [
   { id: 'test', name: 'Engine tests', tool: 'vitest', kind: 'test', result: '39 / 39 pass', secs: 3 },
   { id: 'types', name: 'Typecheck + lint', tool: 'tsc --strict', kind: 'test', result: '0 errors', secs: 11 },
   { id: 'sast', name: 'Static analysis', tool: 'Semgrep', kind: 'security', result: '0 high · 0 critical', secs: 22 },
-  { id: 'build', name: 'Hardened image', tool: 'Iron Bank UBI9 base · non-root', kind: 'build', result: 'navifi:0.9.3', secs: 64 },
+  { id: 'build', name: 'Hardened image', tool: 'Iron Bank UBI9 base · non-root', kind: 'build', result: 'navifi:0.10.0', secs: 64 },
   { id: 'sbom', name: 'SBOM', tool: 'Syft (SPDX + CycloneDX)', kind: 'supply', result: '412 components', secs: 7 },
   { id: 'cve', name: 'CVE scan', tool: 'Grype', kind: 'security', result: '0 critical · 0 high', secs: 14 },
   { id: 'sign', name: 'Sign + attest', tool: 'cosign (keyless)', kind: 'supply', result: 'signature + SBOM attestation', secs: 4 },
   { id: 'lula', name: 'Compliance check', tool: 'Lula → OSCAL', kind: 'compliance', result: '47 / 48 controls satisfied', secs: 9 },
-  { id: 'zarf', name: 'Air-gap package', tool: 'Zarf + UDS bundle', kind: 'deploy', result: 'navifi-0.9.3.tar.zst', secs: 41 },
+  { id: 'zarf', name: 'Air-gap package', tool: 'Zarf + UDS bundle', kind: 'deploy', result: 'navifi-0.10.0.tar.zst', secs: 41 },
   { id: 'ship', name: 'Deploy to hull', tool: 'uds deploy · sneakernet or DDIL', kind: 'deploy', result: 'DDG-170 healthy', secs: 95 },
 ];
 
@@ -134,16 +134,16 @@ export interface Hull {
 
 /** Synthetic fleet: fictional hull numbers, illustrative rollout states. */
 export const HULLS: Hull[] = [
-  { hull: 'DDG-170', cls: 'DDG Flt III', state: 'live', version: '0.9.3' },
-  { hull: 'DDG-171', cls: 'DDG Flt III', state: 'live', version: '0.9.3' },
-  { hull: 'DDG-172', cls: 'DDG Flt IIA', state: 'syncing', version: '0.9.2 → 0.9.3' },
-  { hull: 'DDG-173', cls: 'DDG Flt IIA', state: 'live', version: '0.9.3' },
-  { hull: 'DDG-174', cls: 'DDG Flt IIA', state: 'staged', version: '0.9.3 · awaits port' },
+  { hull: 'DDG-170', cls: 'DDG Flt III', state: 'live', version: '0.10.0' },
+  { hull: 'DDG-171', cls: 'DDG Flt III', state: 'live', version: '0.10.0' },
+  { hull: 'DDG-172', cls: 'DDG Flt IIA', state: 'syncing', version: '0.9.2 → 0.10.0' },
+  { hull: 'DDG-173', cls: 'DDG Flt IIA', state: 'live', version: '0.10.0' },
+  { hull: 'DDG-174', cls: 'DDG Flt IIA', state: 'staged', version: '0.10.0 · awaits port' },
   { hull: 'DDG-175', cls: 'DDG Flt IIA', state: 'pending' },
-  { hull: 'CG-176', cls: 'CG', state: 'live', version: '0.9.3' },
+  { hull: 'CG-176', cls: 'CG', state: 'live', version: '0.10.0' },
   { hull: 'DDG-177', cls: 'DDG Flt III', state: 'pending' },
-  { hull: 'LPD-178', cls: 'LPD', state: 'syncing', version: '0.9.1 → 0.9.3' },
-  { hull: 'FFG-179', cls: 'FFG', state: 'staged', version: '0.9.3' },
+  { hull: 'LPD-178', cls: 'LPD', state: 'syncing', version: '0.9.1 → 0.10.0' },
+  { hull: 'FFG-179', cls: 'FFG', state: 'staged', version: '0.10.0' },
   { hull: 'LHA-180', cls: 'LHA', state: 'pending' },
   { hull: 'DDG-181', cls: 'DDG Flt III', state: 'pending' },
 ];
