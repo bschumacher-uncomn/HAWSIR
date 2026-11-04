@@ -44,6 +44,7 @@ export function App() {
     const st = useStore.getState();
     if (q.get('cap')) st.selectCap(q.get('cap')!);
     if (q.get('node')) st.selectNode(q.get('node'));
+    if (q.get('t') && Number.isFinite(Number(q.get('t')))) st.setWatchTime(Number(q.get('t')));
   }, [setBooted]);
 
   return (

@@ -192,6 +192,24 @@ export interface Scenario {
   thresholds: { qMargin: number; cliff: number };
   track?: TrackPoint[];
   ports?: { id: string; name: string; lon: number; lat: number }[];
+  places?: Record<string, { name: string; lon: number; lat: number }>;
+  legs?: GeoLeg[];
+  missionArea?: { name: string; lon: number; lat: number; radiusKm: number };
+}
+
+/** A physical movement (part, person, aircraft, data) whose arrival is an engine node. */
+export interface GeoLeg {
+  id: string;
+  label: string;
+  kind: 'part' | 'person' | 'aircraft' | 'data';
+  /** Node whose readiness is the arrival time. */
+  nodeId: string;
+  from: string;
+  /** Destination place id, or 'ship' for the ship's position at arrival. */
+  to: string;
+  /** Destination depends on which window the gate used. */
+  gateId?: string;
+  byWindow?: Record<string, string>;
 }
 
 export interface TrackPoint {
