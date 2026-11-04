@@ -32,9 +32,11 @@ pnpm install && pnpm dev     # http://localhost:5310
 | Evidence | Live failure-case matrix, judge challenge stopwatch, baseline vs assisted, 30/60/90 |
 | Edge Platform | RHEL 9 → RKE2 → UDS Core stack (live), AI-assisted CI/CD, DDIL, OSCAL, fleet rollout |
 
-Keyboard: `1`–`8` switch screens, `Space` play/pause the change stream.
+Keyboard: `1`–`8` switch screens, `Space` play/pause the change stream, `Shift+R` reset the session (clears approvals, what-ifs and the local log; the edge copy is kept).
 
 ## Three-minute demo
+
+Before each run, open `http://localhost:5310/?reset` (or press `Shift+R`) so earlier rehearsal approvals don't carry over.
 
 1. **Watch Floor (0:00).** "D-14 before tasking. AMD is qualified, ready D-5 2200 with 4 days 10 hours of margin, and FC1 Martinez controls it." Replay the change stream: the CASREP lands and the ship lights up; the CFA slips 2d 3h and AMD margin drops 9d 18h. "That is the nonlinear part: it missed the sail date, so the Rota window controls."
 2. **Consequence Graph (0:50).** Click Martinez. "Zero slack: any slip is mission slip. The CFA now has slack to spare." Drag the what-if slider past the cliff.

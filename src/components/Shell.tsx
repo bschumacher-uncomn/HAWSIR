@@ -22,6 +22,7 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { SCENARIOS, scenarioById } from '@/data/scenarios';
 import { dtg, fmtDur, fmtT } from '@/engine/time';
 import { useEngine, type EventImpact } from '@/state/engine';
@@ -486,6 +487,11 @@ function useHotkeys() {
       const i = Number(e.key) - 1;
       if (Number.isInteger(i) && i >= 0 && i < NAV.length) {
         navigate(NAV[i].to + location.search);
+        return;
+      }
+      if (e.key === 'R' && e.shiftKey) {
+        useStore.getState().resetSession();
+        toast('Session reset', { description: 'Planning assumptions, what-ifs and local log cleared. Edge copy retained.' });
         return;
       }
       if (e.key === ' ' && !el.closest('button')) {

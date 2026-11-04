@@ -42,6 +42,12 @@ export function App() {
     const q = new URLSearchParams(location.search);
     if (q.has('noboot') || (!q.has('boot') && sessionStorage.getItem('navifi-booted'))) setBooted(true);
     const st = useStore.getState();
+    if (q.has('reset')) {
+      st.resetSession();
+      q.delete('reset');
+      const rest = q.toString();
+      history.replaceState(null, '', location.pathname + (rest ? `?${rest}` : ''));
+    }
     if (q.get('cap')) st.selectCap(q.get('cap')!);
     if (q.get('node')) st.selectNode(q.get('node'));
     if (q.get('t') && Number.isFinite(Number(q.get('t')))) st.setWatchTime(Number(q.get('t')));

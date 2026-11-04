@@ -178,7 +178,25 @@ export const useStore = create<State>()(
         set((st) => ({ audit: st.audit.map((e) => (e.seq === seq ? { ...e, detail: original.detail, data: original.data } : e)) }));
         get().log('SYSTEM', 'AUDIT_RESTORED', `Entry #${seq} restored from edge copy (hash match)`, { seq });
       },
-      resetSession: () => set({ audit: [], decisions: [], approved: [], shifts: {}, halted: false }),
+      resetSession: () => {
+        const s = scenarioById(get().scenarioId);
+        const cap = s.nodes.find((n) => n.kind === 'capability' && n.code === 'AMD') ?? s.nodes.find((n) => n.kind === 'capability');
+        set({
+          audit: [],
+          decisions: [],
+          approved: [],
+          shifts: {},
+          halted: false,
+          haltReason: '',
+          playing: false,
+          link: 'SATCOM',
+          watchTime: defaultWatch(s.id),
+          selectedCap: cap?.id ?? '',
+          selectedNode: null,
+          focusEventId: null,
+        });
+        get().log('SYSTEM', 'SESSION_RESET', `New session on "${s.name}"; prior planning assumptions and log cleared locally (edge copy retained)`);
+      },
       setLlm: (llmEnabled) => set({ llmEnabled }),
     }),
     {
