@@ -1,7 +1,7 @@
-import { Edges, Html, Line, OrbitControls, Sparkles } from '@react-three/drei';
+import { Edges, OrbitControls, Sparkles } from '@react-three/drei';
 import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import * as THREE from 'three';
 import type { ShipPart } from '@/engine/types';
 import type { PartState } from './shipState';
@@ -403,40 +403,123 @@ function Projector() {
   );
 }
 
-function Callouts({ parts, focus }: { parts: Partial<Record<ShipPart, PartState>>; focus: Set<ShipPart>; }) {
-  const all = (Object.values(parts) as PartState[]).filter((p) => PART_POS[p.part] && p.part !== 'crew');
-  const shown = all
-    .filter((p) => !p.up || p.flagged || focus.has(p.part))
+type Callout = { part: ShipPart; label: string; status: string; color: string; pos: [number, number, number]; tip: [number, number, number] };
+type CalloutEls = { labels: Map<ShipPart, HTMLDivElement>; leaders: Map<ShipPart, SVGLineElement> };
+
+const CALLOUT_DISTANCE_FACTOR = 9;
+const CALLOUT_MAX_Y = 2.7;
+
+function calloutsFor(parts: Partial<Record<ShipPart, PartState>>, focus: Set<ShipPart>): Callout[] {
+  return (Object.values(parts) as PartState[])
+    .filter((p) => PART_POS[p.part] && p.part !== 'crew' && (!p.up || p.flagged || focus.has(p.part)))
     .slice(0, 6)
-    .map((p) => p.part);
-  // Html callouts own separate React roots; keep them mounted and hide them, since unmounting mid-render races React 19.
+    .map((p, i) => {
+      const pos = PART_POS[p.part]!;
+      const side = i % 2 ? -1 : 1;
+      return {
+        part: p.part,
+        label: p.label,
+        status:
+          (p.up ? (p.flagged ? 'DATA FLAG' : 'UP') : p.partial ? 'REDUNDANCY LOST' : p.part === 'helo' ? 'NOT EMBARKED' : 'DOWN') +
+          (!p.up && !p.partial && p.etaLabel ? ` · ${p.etaLabel}` : ''),
+        color: p.up && !p.flagged ? '#67e8f9' : SEV_COLOR[p.sev],
+        pos,
+        tip: [pos[0] + 0.4 * side, Math.min(pos[1] + 1.1 + (i % 3) * 0.35, CALLOUT_MAX_Y), pos[2] + 0.9 * side],
+      };
+    });
+}
+
+/**
+ * Projects each callout's part and tip to screen space every frame, nudges overlapping labels apart, and positions the DOM
+ * labels and leader lines. Labels are plain DOM (not drei Html): each Html is its own React root, and those roots get torn
+ * down inside the R3F commit, which React 19 reports as an unmount race.
+ */
+function CalloutProjector({ items, els }: { items: Callout[]; els: RefObject<CalloutEls> }) {
+  const g = useRef<THREE.Group>(null);
+  const v = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera, size }) => {
+    if (!g.current) return;
+    const tanHalf = Math.tan(((camera as THREE.PerspectiveCamera).fov * Math.PI) / 360);
+    const toScreen = (p: [number, number, number]) => {
+      g.current!.localToWorld(v.set(...p));
+      const dist = v.distanceTo(camera.position);
+      v.project(camera);
+      return { x: (v.x * 0.5 + 0.5) * size.width, y: (-v.y * 0.5 + 0.5) * size.height, dist, behind: v.z > 1 };
+    };
+    const boxes = items.flatMap((it) => {
+      const label = els.current?.labels.get(it.part);
+      const leader = els.current?.leaders.get(it.part);
+      if (!label || !leader) return [];
+      const a = toScreen(it.pos);
+      const t = toScreen(it.tip);
+      const scale = CALLOUT_DISTANCE_FACTOR / (2 * tanHalf * t.dist);
+      return [{ label, leader, a, x: t.x, y: t.y, dist: t.dist, scale, w: label.offsetWidth * scale, h: label.offsetHeight * scale, behind: a.behind || t.behind }];
+    });
+    for (let pass = 0; pass < 6; pass++) {
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          const p = boxes[i], q = boxes[j];
+          const ox = (p.w + q.w) / 2 + 6 - Math.abs(p.x - q.x);
+          const oy = (p.h + q.h) / 2 + 6 - Math.abs(p.y - q.y);
+          if (ox <= 0 || oy <= 0) continue;
+          const dir = p.y <= q.y ? 1 : -1;
+          p.y -= (dir * oy) / 2;
+          q.y += (dir * oy) / 2;
+        }
+      }
+    }
+    for (const b of boxes) {
+      const y = Math.min(Math.max(b.y, b.h / 2 + 4), size.height - b.h / 2 - 4);
+      b.label.style.transform = `translate3d(${b.x}px, ${y}px, 0) translate(-50%, -50%) scale(${b.scale})`;
+      b.label.style.zIndex = String(Math.round(100 - b.dist * 4));
+      b.label.style.visibility = b.behind ? 'hidden' : 'visible';
+      b.leader.setAttribute('x1', String(b.a.x));
+      b.leader.setAttribute('y1', String(b.a.y));
+      b.leader.setAttribute('x2', String(b.x));
+      b.leader.setAttribute('y2', String(y));
+      b.leader.style.visibility = b.behind ? 'hidden' : 'visible';
+    }
+  });
+  return <group ref={g} />;
+}
+
+function CalloutLabels({ items, els }: { items: Callout[]; els: RefObject<CalloutEls> }) {
   return (
-    <>
-      {all.map((p) => {
-        const i = Math.max(0, shown.indexOf(p.part));
-        const visible = shown.includes(p.part);
-        const pos = PART_POS[p.part]!;
-        const side = i % 2 ? -1 : 1;
-        const tip: [number, number, number] = [pos[0] + 0.4 * side, pos[1] + 1.1 + (i % 3) * 0.35, pos[2] + 0.9 * side];
-        const color = p.up && !p.flagged ? '#67e8f9' : SEV_COLOR[p.sev];
-        return (
-          <group key={p.part}>
-            <Line visible={visible} points={[pos, tip]} color={color} lineWidth={1} transparent opacity={0.8} dashed dashSize={0.06} gapSize={0.04} />
-            <Html position={tip} center distanceFactor={9} zIndexRange={[10, 0]} style={{ display: visible ? undefined : 'none' }}>
-              <div className="pointer-events-none whitespace-nowrap rounded-[2px] border bg-[#020a12]/85 px-2 py-1 backdrop-blur" style={{ borderColor: `${color}88`, boxShadow: `0 0 18px -4px ${color}` }}>
-                <div className="font-display text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color }}>
-                  {p.label}
-                </div>
-                <div className="font-mono text-[10px] text-sky-100/80">
-                  {p.up ? (p.flagged ? 'DATA FLAG' : 'UP') : p.partial ? 'REDUNDANCY LOST' : p.part === 'helo' ? 'NOT EMBARKED' : 'DOWN'}
-                  {!p.up && !p.partial && p.etaLabel ? ` · ${p.etaLabel}` : ''}
-                </div>
-              </div>
-            </Html>
-          </group>
-        );
-      })}
-    </>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <svg className="absolute inset-0 h-full w-full overflow-visible">
+        {items.map((it) => (
+          <g key={it.part} style={{ filter: `drop-shadow(0 0 3px ${it.color})` }}>
+            <line
+              ref={(el) => {
+                if (el) els.current?.leaders.set(it.part, el);
+                else els.current?.leaders.delete(it.part);
+              }}
+              stroke={it.color}
+              strokeOpacity={0.85}
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              style={{ visibility: 'hidden' }}
+            />
+          </g>
+        ))}
+      </svg>
+      {items.map((it) => (
+        <div
+          key={it.part}
+          ref={(el) => {
+            if (el) els.current?.labels.set(it.part, el);
+            else els.current?.labels.delete(it.part);
+          }}
+          className="absolute left-0 top-0 whitespace-nowrap rounded-[2px] border bg-[#020a12]/85 px-2 py-1 backdrop-blur"
+          style={{ visibility: 'hidden', borderColor: `${it.color}88`, boxShadow: `0 0 18px -4px ${it.color}` }}
+        >
+          <div className="font-display text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: it.color }}>
+            {it.label}
+          </div>
+          <div className="font-mono text-[10px] text-sky-100/80">{it.status}</div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -451,21 +534,26 @@ export function HoloShip({
   onPick: Pick;
   autoRotate?: boolean;
 }) {
+  const callouts = useMemo(() => calloutsFor(parts, focus), [parts, focus]);
+  const calloutEls = useRef<CalloutEls>({ labels: new Map(), leaders: new Map() });
   return (
-    <Canvas camera={{ position: [6.4, 3.5, 7.2], fov: 34 }} dpr={[1, 2]} gl={{ antialias: true, alpha: true }} onPointerMissed={() => (document.body.style.cursor = '')}>
-      <fog attach="fog" args={['#02060c', 12, 30]} />
-      <group position={[0, -0.4, 0]}>
-        <Ship parts={parts} selected={focus} onPick={onPick} />
-        <Callouts parts={parts} focus={focus} />
-        <Ocean />
-        <Projector />
-        <Sparkles count={70} scale={[14, 4, 8]} size={1.6} speed={0.25} color="#67e8f9" opacity={0.5} position={[0, 1.5, 0]} />
-      </group>
-      <OrbitControls enablePan={false} minDistance={6} maxDistance={18} maxPolarAngle={Math.PI / 2.05} autoRotate={autoRotate} autoRotateSpeed={0.45} enableDamping target={[0, 0.3, 0]} />
-      <EffectComposer>
-        <Bloom intensity={0.85} luminanceThreshold={0.22} luminanceSmoothing={0.35} mipmapBlur />
-        <Vignette eskil={false} offset={0.2} darkness={0.75} />
-      </EffectComposer>
-    </Canvas>
+    <div className="relative h-full w-full">
+      <Canvas camera={{ position: [6.4, 3.5, 7.2], fov: 34 }} dpr={[1, 2]} gl={{ antialias: true, alpha: true }} onPointerMissed={() => (document.body.style.cursor = '')}>
+        <fog attach="fog" args={['#02060c', 12, 30]} />
+        <group position={[0, -0.4, 0]}>
+          <Ship parts={parts} selected={focus} onPick={onPick} />
+          <CalloutProjector items={callouts} els={calloutEls} />
+          <Ocean />
+          <Projector />
+          <Sparkles count={70} scale={[14, 4, 8]} size={1.6} speed={0.25} color="#67e8f9" opacity={0.5} position={[0, 1.5, 0]} />
+        </group>
+        <OrbitControls enablePan={false} minDistance={6} maxDistance={18} maxPolarAngle={Math.PI / 2.05} autoRotate={autoRotate} autoRotateSpeed={0.45} enableDamping target={[0, 0.3, 0]} />
+        <EffectComposer>
+          <Bloom intensity={0.85} luminanceThreshold={0.22} luminanceSmoothing={0.35} mipmapBlur />
+          <Vignette eskil={false} offset={0.2} darkness={0.75} />
+        </EffectComposer>
+      </Canvas>
+      <CalloutLabels items={callouts} els={calloutEls} />
+    </div>
   );
 }
