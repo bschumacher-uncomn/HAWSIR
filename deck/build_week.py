@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""NAVIFI deck, told as what the team built this week.
+"""HAWSIR deck, told as what the team built this week.
 
 Plain Arial and native shapes, so it opens and edits the same on any machine; only the
 app screenshots are images. The rubric-ordered pitch deck is deck/build.py.
 
 usage: python3 deck/build_week.py
-  -> deck/out/NAVIFI_this_week.pptx, plus a PDF and PNG previews when LibreOffice
+  -> deck/out/HAWSIR_this_week.pptx, plus a PDF and PNG previews when LibreOffice
      and pdftoppm are installed.
 """
 import shutil
@@ -26,7 +26,7 @@ STILLS = DECK.parent / 'video/footage/stills'
 TEAM = DECK / 'team'
 BUILD = DECK / 'build'
 OUT = DECK / 'out'
-NAME = 'NAVIFI_this_week'
+NAME = 'HAWSIR_this_week'
 FONT = 'Arial'
 
 ABYSS = RGBColor(0x02, 0x06, 0x0C)
@@ -183,11 +183,11 @@ def beats(s, x, y, w, items, step=1.45, title_size=15, body_size=11.5):
         y += step
 
 
-# ================================================================ 1. title
+# ================================================================ title
 def slide_title():
     s = Slide()
     s.label(0.6, 0.55, 6, 0.3, [[('FLEETHACKER NORFOLK 2026', 12, CYAN, True)]])
-    s.label(0.6, 0.9, 6, 1.0, [[('NAVIFI', 66, INK, True)]])
+    s.label(0.6, 0.9, 6, 1.0, [[('HAWSIR', 66, INK, True)]])
     s.label(0.6, 2.0, 5.7, 0.4, [[('A mission consequence engine for the watch floor', 18, SOFT, False)]])
     s.label(0.6, 2.45, 5.7, 0.45, [[('Know before it breaks the mission.', 22, CYAN, True)]])
     s.label(0.6, 3.15, 5.5, 1.0, [[(
@@ -201,7 +201,7 @@ def slide_title():
         ('WEDNESDAY', VIOLET, 'The mission thread',
          "Executable MCM thread, auto-laid threads, Connor's standalone mission engine, the video"),
         ('THURSDAY', GREEN, 'Live on our own cluster',
-         'RHEL 9, RKE2 and UDS Core stood up on AWS; NAVIFI deployed from a git commit'),
+         'RHEL 9, RKE2 and UDS Core stood up on AWS; HAWSIR deployed from a git commit'),
     ]
     DW, DG, DY, DH = (12.15 - 2 * 0.25) / 3, 0.25, 4.85, 1.9
     for i, (day, color, title, body) in enumerate(days):
@@ -213,22 +213,22 @@ def slide_title():
         if i < 2:
             s.line(x + DW + 0.04, DY + DH / 2, x + DW + DG - 0.04, DY + DH / 2, MUTE, width=1.5)
     s.notes(
-        "NAVIFI is a mission consequence engine for the watch floor: when status reports land, it shows which one "
+        "HAWSIR is a mission consequence engine for the watch floor: when status reports land, it shows which one "
         "actually controls the mission, what it costs, and which bounded options recover it.\n\n"
         "We built it this week. Tuesday was the engine and the watch floor. Wednesday was the executable mission "
         "thread; Connor also wrote a standalone mission engine, and we built the video. Wednesday night into "
-        "Thursday we stood up a real cluster on AWS, on the same stack a ship would run, and deployed NAVIFI to it.\n\n"
+        "Thursday we stood up a real cluster on AWS, on the same stack a ship would run, and deployed HAWSIR to it.\n\n"
         "Everything you will see uses synthetic data, and a human makes every decision.")
 
 
-# ================================================================ 2. who we are
+# ================================================================ who we are
 def slide_team():
     s = Slide()
     s.header('WHO WE ARE', 'A two-day sprint', [
         ('Questions, or a mission you want to see run through it? Email either of us.', 14, SOFT, False)])
     people = [
         ('bryce-schumacher', (70, 30, 520), CYAN, 'Bryce Schumacher', 'bschumacher@uncomn.com',
-         'Built the NAVIFI app: the watch floor, the mission thread, the decision log and the evidence screens. '
+         'Built the HAWSIR app: the watch floor, the mission thread, the decision log and the evidence screens. '
          'Stood up the lab cluster on AWS.'),
         ('connor-barnsley', (60, 0, 520), VIOLET, 'Connor Barnsley', 'cbarnsley@uncomn.com',
          'Built the standalone mission engine: the dependency graph, Monte Carlo, the decision ledger, and naval '
@@ -243,16 +243,16 @@ def slide_team():
         s.label(x + 0.45, CY + D + 1.15, CW - 0.9, 0.8, [[(body, 12.5, SOFT, False)]],
                 align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.TOP)
         s.label(x + 0.4, CY + CH - 0.5, CW - 0.8, 0.3, [[(email, 13, color, True)]], align=PP_ALIGN.CENTER)
-    s.label(0.6, 6.85, 12.15, 0.3, [[('NAVIFI  ·  FleetHacker Norfolk 2026', 11, MUTE, False)]], align=PP_ALIGN.CENTER)
+    s.label(0.6, 6.85, 12.15, 0.3, [[('HAWSIR  ·  FleetHacker Norfolk 2026', 11, MUTE, False)]], align=PP_ALIGN.CENTER)
     s.notes(
         "We're Bryce and Connor, and the two of us built this in a two-day sprint.\n\n"
-        "Bryce built the NAVIFI app, the watch floor, mission thread, decision log and evidence screens, and stood "
+        "Bryce built the HAWSIR app, the watch floor, mission thread, decision log and evidence screens, and stood "
         "up the lab cluster it runs on. Connor built the standalone mission engine: the dependency graph, Monte "
         "Carlo, the decision ledger and the naval and airlift mission packs.\n\n"
         "If you have questions, or a mission you want to see run through it, our emails are on the slide.")
 
 
-# ================================================================ 3. three terms
+# ================================================================ three terms
 def slide_terms():
     s = Slide()
     s.header('FIRST, THREE TERMS', 'MBSE, mission engineering and mission readiness', [
@@ -292,7 +292,7 @@ def slide_terms():
         if i < 2:
             s.line(x + CW + 0.06, CY + CH / 2, x + CW + CG - 0.06, CY + CH / 2, CYAN, width=2)
     s.notes(
-        "Three terms before the demo, because NAVIFI sits where they meet.\n\n"
+        "Three terms before the demo, because HAWSIR sits where they meet.\n\n"
         "MBSE, model-based systems engineering, designs a system as one connected model instead of a stack of "
         "documents, so you can see what each system needs to work: parts, maintenance, a qualified person.\n\n"
         "Mission engineering starts from the mission instead of the platform. It breaks a mission into a thread of "
@@ -304,7 +304,7 @@ def slide_terms():
         "mission thread lives in a plan, readiness is reported system by system, and the whiteboard connects them.")
 
 
-# ================================================================ 4. the digital thread
+# ================================================================ the digital thread
 def slide_digital_thread():
     s = Slide()
     s.header('THE DIGITAL THREAD', 'How mission engineering threads into readiness', [
@@ -340,7 +340,7 @@ def slide_digital_thread():
     rows = [
         ('TODAY', AMBER, 'The thread is a plan or a slide. Readiness is reported system by system. The watch joins '
                          'them on a whiteboard, by hand, every time a report lands.'),
-        ('WITH NAVIFI', CYAN, 'The thread runs. Records attach to its nodes as they change, and readiness is computed '
+        ('WITH HAWSIR', CYAN, 'The thread runs. Records attach to its nodes as they change, and readiness is computed '
                               'per mission: Y, Q or N, the margin, and what controls it.'),
     ]
     for i, (k, color, text) in enumerate(rows):
@@ -361,12 +361,123 @@ def slide_digital_thread():
         "is N, an hour and fifteen minutes short, controlled by OS1 Vega's watch.\n\n"
         "And it traces back. Every answer points to the task, the system and the record behind it.\n\n"
         "Today that thread is broken: the mission plan sits in a model or a slide, readiness is reported system by "
-        "system, and a Sailor joins them on a whiteboard. NAVIFI makes the thread run.\n\n"
+        "system, and a Sailor joins them on a whiteboard. HAWSIR makes the thread run.\n\n"
         "What is not done yet: we write the thread and the dependencies by hand. Reading them straight from the "
         "engineering model is the next link.")
 
 
-# ================================================================ 3. the question
+# ================================================================ mission engineering, concretely
+def slide_mission_eng():
+    s = Slide()
+    s.header('MISSION ENGINEERING, CONCRETELY', 'One mission, from its phases down to the systems it rides on', [
+        ('Operation Open Passage as the engine sees it at 1000. The red path is what controls the mission.', 14, SOFT, False)])
+    X0, G = 2.0, 0.18
+    W = [2.65, 2.2, 2.35, 1.68, 1.15]
+    XS = [X0 + sum(W[:i]) + i * G for i in range(len(W))]
+    TY, TH = 3.15, 1.0
+    SY = 4.5
+
+    layers = [(1.8, 'MISSION', 'what the commander needs'), (2.45, 'PHASES', 'when'),
+              (TY, 'MISSION THREAD', 'who does what, in order'),
+              (SY, 'SYSTEM OF SYSTEMS', 'what each task rides on, and the record that reports it')]
+    for y, name, sub in layers:
+        s.label(0.6, y, 1.3, 1.2, [[(name, 10, CYAN, True)], [(sub, 9, MUTE, False)]], anchor=MSO_ANCHOR.TOP, spacing=2)
+
+    mission = s.box(X0, 1.8, 10.75, 0.5, fill=HULL, line=CYAN, line_w=1.25)
+    s.text(mission, [[('OPERATION OPEN PASSAGE', 11.5, CYAN, True),
+                      ('    Mine assessment of Thimble Shoal lanes 1–4  ·  to the commander by 1800  ·  task group transits 2000',
+                       10.5, INK, False)]], align=PP_ALIGN.LEFT)
+
+    phases = [
+        (MSO_SHAPE.PENTAGON, XS[0], XS[2] + W[2] - XS[0] + 0.1, CYAN, [[('ASSESS APPROACH', 11, CYAN, True), ('   0600–1800', 10, SOFT, False)]]),
+        (MSO_SHAPE.CHEVRON, XS[3] - 0.08, W[3] + 0.16, AMBER, [[('COMMANDER DECISION', 9, AMBER, True)], [('1800–2000', 9, SOFT, False)]]),
+        (MSO_SHAPE.CHEVRON, XS[4] - 0.08, W[4] + 0.08, AMBER, [[('TRANSIT', 9.5, AMBER, True)], [('2000', 9, SOFT, False)]]),
+    ]
+    for kind, x, w, color, runs in phases:
+        shp = s.S.add_shape(kind, Inches(x), Inches(2.45), Inches(w), Inches(0.5))
+        shp.adjustments[0] = 0.35
+        shp.fill.solid()
+        shp.fill.fore_color.rgb = CHIP
+        shp.line.color.rgb = color
+        shp.line.width = Pt(1.25)
+        shp.shadow.inherit = False
+        shp.text_frame.margin_left = shp.text_frame.margin_right = Inches(0.15)
+        s.text(shp, runs)
+
+    tasks = [
+        ('SURFACE  ·  USV-1', BLUE, 'Launch › sonar survey, lanes 1–4 › recover › transfer', '0730–1400', SOFT),
+        ('AIR  ·  MH-60S DET 1', SKY, 'Flight window › ALMDS sortie › collect', '0815–1115', SOFT),
+        ('ANALYSIS', VIOLET, 'Review sonar AND airborne, with a qualified reviewer', '1645–1915', RED),
+        ('COMMANDER', AMBER, 'Decides on the transit', 'due 1800', AMBER),
+        ('TASK GROUP', CYAN, 'Transits the approach', '2000', SOFT),
+    ]
+    for i, (head, color, body, when, when_color) in enumerate(tasks):
+        x, w = XS[i], W[i]
+        critical = i == 2
+        s.box(x, TY, w, TH, fill=HULL, line=RED if critical else color, line_w=2 if critical else 1.25, radius=0.06)
+        s.label(x + 0.14, TY + 0.1, w - 0.28, 0.22, [[(head, 9, color, True)]])
+        s.label(x + 0.14, TY + 0.33, w - 0.28, 0.45, [[(body, 10, INK, False)]], anchor=MSO_ANCHOR.TOP)
+        s.label(x + 0.14, TY + TH - 0.28, w - 0.28, 0.22, [[(when, 10, when_color, True)]])
+
+    mid = TY + TH / 2
+    s.line(XS[1] + W[1] + 0.02, mid, XS[2] - 0.02, mid, MUTE, width=1.5)
+    s.line(XS[2] + W[2] + 0.02, mid, XS[3] - 0.02, mid, RED, width=2)
+    s.line(XS[3] + W[3] + 0.02, mid, XS[4] - 0.02, mid, AMBER, width=1.5)
+    cy, sx, ex = TY + TH + 0.15, XS[0] + W[0] - 0.4, XS[2] + 0.4
+    s.line(sx, TY + TH, sx, cy, MUTE, width=1.5, head=False)
+    s.line(sx, cy, ex, cy, MUTE, width=1.5, head=False)
+    s.line(ex, cy, ex, TY + TH + 0.01, MUTE, width=1.5)
+
+    def chip(x, y, w, h, name, status, color, lane, critical=False):
+        c = s.box(x, y, w, h, fill=CHIP, line=RED if critical else lane, line_w=2 if critical else 1, radius=0.12)
+        c.text_frame.margin_left = c.text_frame.margin_right = Inches(0.06)
+        s.text(c, [[(name, 9.5, INK, True)], [(status, 8.5, color, critical)]])
+
+    CH, CG = 0.42, 0.04
+    surface = [('USV-1', 'OMMS-NG · +30 min', AMBER), ('AQS-20C sonar', 'DRRS-N · up', GREEN),
+               ('USV operators', 'WATCHBILL · ready', GREEN), ('MVCS link', 'MVCS · drops out', AMBER)]
+    SW = (W[0] - 0.08) / 2
+    for j, (n, st, c) in enumerate(surface):
+        chip(XS[0] + (j % 2) * (SW + 0.08), SY + (j // 2) * (CH + CG), SW, CH, n, st, c, BLUE)
+    air = [('MH-60S aircraft 61', 'HSC-DET · ready 0815, +45 min', AMBER), ('Det 1 aircrew', 'WATCHBILL · rested at 0700', GREEN),
+           ('MPCE computing', 'DRRS-N · up, shared with the USV', GREEN)]
+    for j, (n, st, c) in enumerate(air):
+        chip(XS[1], SY + j * (CH + CG), W[1], CH, n, st, c, SKY)
+    chip(XS[2], SY, W[2], CH, 'OS1 R. Vega · reviewer', 'WATCHBILL · CIC watch 1300–1645', RED, VIOLET, critical=True)
+    chip(XS[2], SY + CH + CG, W[2], CH, 'MPAS analysis software', 'DRRS-N · up', GREEN, VIOLET)
+    s.line(XS[2] + W[2] / 2, SY - 0.01, XS[2] + W[2] / 2, TY + TH + 0.01, RED, width=2)
+
+    verdict = s.box(XS[3], SY, W[3], 1.0, fill=HULL, line=RED, line_w=2, radius=0.08)
+    s.text(verdict, [[('CAPABILITY', 8.5, MUTE, True)], [('MCM:  N', 15, RED, True)],
+                     [('−1 h 15 m  ·  ready 1915', 9, SOFT, False)]], spacing=1)
+    s.line(XS[3] + W[3] / 2, SY - 0.01, XS[3] + W[3] / 2, TY + TH + 0.01, RED, width=2)
+    chip(XS[4], SY, W[4], CH, 'CTG 20.4', 'AMHS · 0600', GREEN, CYAN)
+
+    s.card(0.6, 6.1, 12.15, 0.88, RED)
+    s.label(0.85, 6.22, 11.65, 0.8, [
+        [('READ IT BOTTOM-UP   ', 10.5, RED, True),
+         ("OS1 Vega takes the CIC watch 1300–1645 on the watchbill › the review can't start until 1645 › MCM is ready "
+          "at 1915, 1 h 15 m past due › the commander's decision and the 2000 transit slip with it. The USV and helo "
+          'reports landed first and looked bigger; neither one controls.', 11.5, INK, False)],
+    ], anchor=MSO_ANCHOR.TOP)
+    s.notes(
+        "This is mission engineering made concrete, on the demo mission.\n\n"
+        "At the top is the mission: assess the Thimble Shoal approach lanes for the commander by 1800, so the task "
+        "group can transit at 2000. It runs in three phases: assess the approach, the commander's decision, and the "
+        "transit.\n\n"
+        "The assess phase is a thread of tasks: a USV sonar survey and an MH-60S airborne survey run in parallel, "
+        "and both feed an analysis step that needs sonar and airborne evidence and a qualified reviewer. That goes "
+        "to the commander, who decides on the transit.\n\n"
+        "Under each task is the system of systems it rides on: the USV, its sonar, its operators and its control "
+        "link; the helo, its aircrew and the mission computer; the analysis software and the reviewer. Each one is "
+        "tagged with the record that reports it: OMMS-NG, DRRS-N, the watchbill, MVCS, the helo detachment.\n\n"
+        "Read it bottom-up at 1000. The USV and helo delays landed first and look bigger, but they are absorbed. "
+        "The one that controls is the watchbill: OS1 Vega, the only qualified reviewer, is on the CIC watch from "
+        "1300 to 1645. The review cannot start until 1645, the assessment is ready at 1915, an hour and fifteen "
+        "minutes late, and the commander's decision and the transit slip with it. All of this is synthetic data.")
+
+
+# ================================================================ the question
 def slide_question():
     s = Slide()
     s.header('WHERE WE STARTED', 'Four reports land. Which one breaks the mission?', [
@@ -389,7 +500,7 @@ def slide_question():
     s.card(0.6, 4.8, 5.3, 2.35, CYAN)
     s.label(0.85, 5.0, 4.8, 0.3, [[('What we built instead', 14, CYAN, True)]])
     s.label(0.85, 5.42, 4.85, 1.6, [
-        [('NAVIFI reads the records of eight systems, read-only, and recomputes the mission in milliseconds.', 12.5, INK, False)],
+        [('HAWSIR reads the records of eight systems, read-only, and recomputes the mission in milliseconds.', 12.5, INK, False)],
         [('Every number links back to the record it came from. Nothing is typed twice or written back.', 12, SOFT, False)],
     ], anchor=MSO_ANCHOR.TOP, spacing=8)
 
@@ -406,12 +517,12 @@ def slide_question():
         "We started from one question: when four status reports land at once, which one actually breaks the mission?\n\n"
         "Today the Sailor is the integration layer: pull the CASREP, call supply, check the watchbill, redo the "
         "whiteboard. Our own tabletop estimate is 30 to 60 minutes per change; that is our estimate, not fleet data.\n\n"
-        "NAVIFI reads the records of eight systems read-only (OMMS-NG, R-Supply, NSIPS, SKED, DRRS-N, the watchbill, "
+        "HAWSIR reads the records of eight systems read-only (OMMS-NG, R-Supply, NSIPS, SKED, DRRS-N, the watchbill, "
         "MVCS and AMHS; synthetic for now), puts them in one picture, and recomputes in milliseconds. Every number "
         "links to its source record, and nothing is written back.")
 
 
-# ================================================================ 3. the mission thread
+# ================================================================ the mission thread
 def slide_thread():
     s = Slide()
     s.header('WHAT WE BUILT', 'We made the mission itself executable', [
@@ -435,7 +546,7 @@ def slide_thread():
         "1 hour 30.")
 
 
-# ================================================================ 4. who decides
+# ================================================================ who decides
 def slide_decides():
     s = Slide()
     s.header('WHO DECIDES', 'The AI explains. A person decides.', [
@@ -463,7 +574,7 @@ def slide_decides():
         "verification catches it, then restores from the edge copy.")
 
 
-# ================================================================ 5. tried to break it
+# ================================================================ tried to break it
 def slide_break():
     s = Slide()
     s.header('THEN WE TRIED TO BREAK IT', 'Twelve ways a real watch could trip it up', [
@@ -510,7 +621,7 @@ def slide_break():
         "independent, and it is a single-ship picture. Those limits sit on the evidence screen next to the results.")
 
 
-# ================================================================ 6. more missions
+# ================================================================ more missions
 def slide_missions():
     s = Slide()
     s.header('ONE ENGINE', 'Then we pointed it at three more missions', [
@@ -545,11 +656,11 @@ def slide_missions():
         "data work.")
 
 
-# ================================================================ 7. built the platform (same as docs/slides)
+# ================================================================ built the platform (same as docs/slides)
 def slide_platform_built():
     s = Slide()
-    s.header('NAVIFI  ·  INFRASTRUCTURE', 'Built this week: a full Kubernetes platform on AWS', [
-        ('From terraform apply to a hardened cluster serving NAVIFI at ', 14, SOFT, False),
+    s.header('HAWSIR  ·  INFRASTRUCTURE', 'Built this week: a full Kubernetes platform on AWS', [
+        ('From terraform apply to a hardened cluster serving HAWSIR at ', 14, SOFT, False),
         ('navifi.uds.demo.uncomn.ai', 14, CYAN, True),
         (', all from code in the repo', 14, SOFT, False),
     ])
@@ -563,7 +674,7 @@ def slide_platform_built():
          'Single-node RKE2 v1.36 with SELinux, plus the kernel setup Istio needs', 'install-rke2.sh'),
         ('4', 'UDS CORE', 'Install the platform', VIOLET,
          'Zarf init, then UDS Core 1.14: policy, mTLS, SSO, logs, metrics, backups', 'install-core.sh, signed'),
-        ('5', 'NAVIFI', 'Deploy the app', GREEN,
+        ('5', 'HAWSIR', 'Deploy the app', GREEN,
          'Any git commit: build, test, package with Zarf, roll out into the cluster', 'deploy.sh, SBOM per build'),
     ]
     SX, SY, SW, SH, SG = 0.6, 1.85, 2.25, 2.05, 0.225
@@ -623,7 +734,7 @@ def slide_platform_built():
     s.label(CX + 0.25, BY + BH - 0.42, CW - 0.5, 0.28, [[('Rebuild it from infra/README.md', 10.5, MUTE, False)]])
 
     s.notes(
-        "This week we built the platform under NAVIFI as well as the app: a real Kubernetes cluster in AWS, "
+        "This week we built the platform under HAWSIR as well as the app: a real Kubernetes cluster in AWS, "
         "running the same stack we plan to run aboard ship.\n\n"
         "Five steps, all in the repo. Terraform creates the node, its firewall, IAM role, load balancer rules, "
         "TLS certificate and DNS: 27 resources in one apply. First boot hardens the RHEL 9 host with SELinux "
@@ -637,10 +748,10 @@ def slide_platform_built():
         "images, and our own tighter network rules cutting Loki off from the Kubernetes API.")
 
 
-# ================================================================ 8. how the cluster fits together (same as docs/slides)
+# ================================================================ how the cluster fits together (same as docs/slides)
 def slide_platform_arch():
     s = Slide()
-    s.header('NAVIFI  ·  LAB CLUSTER ON AWS', "One hardened node running the ship's stack", [
+    s.header('HAWSIR  ·  LAB CLUSTER ON AWS', "One hardened node running the ship's stack", [
         ('RHEL 9  ·  RKE2 Kubernetes  ·  Defense Unicorns UDS Core  ·  Zarf', 14, SOFT, False),
         ('      live at ', 14, MUTE, False),
         ('navifi.uds.demo.uncomn.ai', 14, CYAN, True),
@@ -656,7 +767,7 @@ def slide_platform_arch():
     s.text(alb, [
         [('Load balancer', 12, INK, True)],
         [('TLS via AWS ACM', 10.5, SOFT, False)],
-        [('NAVIFI: public', 10.5, GREEN, True)],
+        [('HAWSIR: public', 10.5, GREEN, True)],
         [('Admin tools: operator IPs only', 10.5, SOFT, False)],
     ], spacing=3)
     s.label(2.6, 3.75, 1.6, 0.5, [[("The node's firewall admits only this load balancer", 10, MUTE, False)]], align=PP_ALIGN.CENTER)
@@ -672,7 +783,7 @@ def slide_platform_arch():
     gw = s.box(IX, 2.45, IW, 0.42, fill=HULL, line=CYAN)
     s.text(gw, [[('Istio ingress gateways', 11.5, INK, True), ('   tenant  ·  admin', 10.5, MUTE, False)]])
     app = s.box(IX, 3.1, 1.75, 0.95, fill=CYAN, radius=0.1)
-    s.text(app, [[('NAVIFI', 16, ABYSS, True)], [('app + audit volume', 10.5, ABYSS, False)]])
+    s.text(app, [[('HAWSIR', 16, ABYSS, True)], [('app + audit volume', 10.5, ABYSS, False)]])
     reg = s.box(IX + 1.9, 3.1, IW - 1.9, 0.44, fill=HULL, line=EDGE)
     s.text(reg, [[('Zarf registry', 11, SOFT, True)]])
     minio = s.box(IX + 1.9, 3.61, IW - 1.9, 0.44, fill=HULL, line=EDGE)
@@ -704,7 +815,7 @@ def slide_platform_arch():
     blocks = [
         ('Locked down by default', CYAN, [
             'SSM sessions only, logged in CloudTrail',
-            'Only NAVIFI is public; admin tools return 404',
+            'Only HAWSIR is public; admin tools return 404',
             'Default-deny network policy and mTLS',
         ]),
         ('Commit to live in one command', GREEN, [
@@ -742,14 +853,14 @@ def slide_platform_arch():
             s.line(sx, 6.67, sx, 7.17, EDGE, width=1, head=False)
 
     s.notes(
-        "NAVIFI runs on the same stack it will use aboard ship: RHEL 9 with SELinux enforcing, RKE2 Kubernetes, "
+        "HAWSIR runs on the same stack it will use aboard ship: RHEL 9 with SELinux enforcing, RKE2 Kubernetes, "
         "and Defense Unicorns' UDS Core, all packaged with Zarf. Here it is one EC2 node behind an AWS load "
         "balancer.\n\n"
         "Traffic: the load balancer terminates TLS and serves only navifi.uds.demo.uncomn.ai to the public. "
         "Grafana, Keycloak and the UDS portal answer 404 unless the request comes from an operator IP. The node "
         "accepts traffic only from the load balancer, and there is no SSH: operators get in through AWS Systems "
         "Manager, authenticated by IAM and logged in CloudTrail.\n\n"
-        "Inside the cluster, UDS Core wraps NAVIFI like every other workload: Pepr admission policies, Istio "
+        "Inside the cluster, UDS Core wraps HAWSIR like every other workload: Pepr admission policies, Istio "
         "ambient mTLS, deny-by-default network policies generated from the app's Package, Falco runtime "
         "detection, and central logs and metrics.\n\n"
         "Delivery: one command takes any git commit, runs typecheck and tests in the image build, wraps the "
@@ -758,11 +869,11 @@ def slide_platform_arch():
         "and sign-in off so the demo opens without an account. The ship build adds DISA STIG, FIPS and Keycloak SSO.")
 
 
-# ================================================================ 9. the same picture aboard ship
+# ================================================================ the same picture aboard ship
 def slide_ship_arch():
-    """Slide 8's layout box for box, with everything that differs from the lab in amber."""
+    """The lab cluster slide's layout box for box, with everything that differs from the lab in amber."""
     s = Slide()
-    s.header('NAVIFI  ·  THEORETICAL SHIPBOARD DEPLOYMENT', 'The same stack aboard, built for DDIL', [
+    s.header('HAWSIR  ·  THEORETICAL SHIPBOARD DEPLOYMENT', 'The same stack aboard, built for DDIL', [
         ('RHEL 9  ·  RKE2 Kubernetes  ·  Defense Unicorns UDS Core  ·  Zarf', 14, SOFT, False),
         ('      same as the lab', 14, MUTE, False),
     ])
@@ -794,7 +905,7 @@ def slide_ship_arch():
     gw = s.box(IX, 2.45, IW, 0.42, fill=HULL, line=CYAN)
     s.text(gw, [[('Istio ingress gateways', 11.5, INK, True), ('   TLS ends here', 10.5, AMBER, True)]])
     app = s.box(IX, 3.1, 1.75, 0.95, fill=CYAN, radius=0.1)
-    s.text(app, [[('NAVIFI', 16, ABYSS, True)], [('app + audit volume', 10.5, ABYSS, False)]])
+    s.text(app, [[('HAWSIR', 16, ABYSS, True)], [('app + audit volume', 10.5, ABYSS, False)]])
     reg = s.box(IX + 1.9, 3.1, IW - 1.9, 0.44, fill=HULL, line=EDGE)
     s.text(reg, [[('Zarf registry', 11, SOFT, True)]])
     narr = s.box(IX + 1.9, 3.61, IW - 1.9, 0.44, fill=HULL, line=AMBER)
@@ -851,7 +962,7 @@ def slide_ship_arch():
 
     s.box(0.6, 6.55, 12.15, 0.74, fill=HULL, line=EDGE, radius=0.12)
     stats = [
-        ('1 bundle', 'Zarf init, UDS Core and NAVIFI'),
+        ('1 bundle', 'Zarf init, UDS Core and HAWSIR'),
         ('0', 'downloads at sea, model included'),
         ('Signed', 'Sigstore-verified, SBOM per build'),
         ('3 link states', 'SATCOM, DDIL and EMCON'),
@@ -868,20 +979,20 @@ def slide_ship_arch():
         "Everything in amber is what changes from the lab cluster on the previous slide; everything else is the "
         "same software we ran this week.\n\n"
         "It is built for DDIL: installed air-gapped, then it runs whatever the link is doing. Watchstanders reach "
-        "NAVIFI over the ship's LAN with a CAC, through Keycloak. It needs no shore link to run, and there is no "
+        "HAWSIR over the ship's LAN with a CAC, through Keycloak. It needs no shore link to run, and there is no "
         "load balancer: TLS ends at the Istio gateway. When there is a link, the decision log goes ashore; in "
         "EMCON nothing leaves at all.\n\n"
         "The rack runs RHEL 9 with the DISA STIG and FIPS mode, and RKE2 with the CIS profile across three edge "
         "nodes. UDS Core uses Iron Bank images. The optional AI narrator runs in the cluster, so it works with the "
         "link down too.\n\n"
-        "Delivery: pier side, connected, we build one UDS bundle carrying Zarf init, UDS Core and NAVIFI, with the "
+        "Delivery: pier side, connected, we build one UDS bundle carrying Zarf init, UDS Core and HAWSIR, with the "
         "model weights inside. It goes aboard by sneakernet or over a degraded link, and nothing is downloaded at sea.\n\n"
         "With the link up, the audit log forwards ashore in batches over SATCOM. In DDIL it trickles one entry at a "
         "time and uses a local model or template text. In EMCON nothing leaves the ship, and the engine, map, "
         "simulation and audit all keep working.")
 
 
-# ================================================================ 10. where we are
+# ================================================================ where we are
 def slide_where():
     s = Slide()
     s.header('WHERE WE ARE', "What's real, what isn't yet, and what's next", [
@@ -927,40 +1038,11 @@ def slide_where():
         "roll-up.")
 
 
-# ================================================================ appendix
-APPENDIX = [
-    ('A1', 'Nothing typed twice', 'Where the data comes from, and what happens when it is bad', CYAN),
-    ('A2', 'What it gives back to the watch', 'Our before and after for one change landing mid-watch', GREEN),
-    ('A3', 'Built for the person on watch', 'The screen, the words, the STOP button, and EMCON', VIOLET),
-    ('A4', 'Slack is not margin', 'The one idea under the engine', AMBER),
-    ('A5', 'Four things broke on the way to AWS', 'What we hit standing up the cluster, and the fixes', RED),
-    ('A6', 'Beyond the surface fleet', "Connor's engine: other ships, other domains", BLUE),
-]
-
-
-def appendix_header(s, code, kicker, subtitle):
-    title = next(t for c, t, _, _ in APPENDIX if c == code)
-    s.header(f'APPENDIX {code}  ·  {kicker}', title, [(subtitle, 14, SOFT, False)])
-
-
-def slide_appendix():
+# ================================================================ nothing typed twice
+def slide_data():
     s = Slide()
-    s.header('APPENDIX', 'More detail, if you want it', [
-        ('Each one goes a level deeper on something from the main deck.', 14, SOFT, False)])
-    CW, CG, CH = (12.15 - 2 * 0.25) / 3, 0.25, 2.05
-    for i, (code, title, desc, color) in enumerate(APPENDIX):
-        x, y = 0.6 + (i % 3) * (CW + CG), 1.95 + (i // 3) * (CH + 0.3)
-        s.card(x, y, CW, CH, color)
-        s.label(x + 0.3, y + 0.3, CW - 0.6, 0.3, [[(code, 13, color, True)]])
-        s.label(x + 0.3, y + 0.62, CW - 0.6, 0.7, [[(title, 17, INK, True)]], anchor=MSO_ANCHOR.TOP)
-        s.label(x + 0.3, y + 1.38, CW - 0.6, 0.6, [[(desc, 12, SOFT, False)]], anchor=MSO_ANCHOR.TOP)
-    s.notes("The appendix goes one level deeper on six things from the main deck. Jump to whichever one comes up.")
-
-
-def slide_a_data():
-    s = Slide()
-    appendix_header(s, 'A1', 'WHERE THE DATA COMES FROM',
-                    'NAVIFI reads the records the ship already keeps. Nobody re-enters a status to make the picture move.')
+    s.header('WHERE THE DATA COMES FROM', 'Nothing typed twice', [
+        ('HAWSIR reads the records the ship already keeps. Nobody re-enters a status to make the picture move.', 14, SOFT, False)])
     s.label(0.6, 1.85, 2.3, 0.28, [[('Read-only connectors', 11, MUTE, True)]])
     systems = [('OMMS-NG', 'maintenance'), ('R-SUPPLY', 'parts and ETAs'), ('NSIPS', 'personnel'),
                ('WATCHBILL', 'watches and quals'), ('SKED', 'PMS schedule'), ('DRRS-N', 'readiness'),
@@ -974,7 +1056,7 @@ def slide_a_data():
     s.text(eng, [[('Mission recomputed', 13, ABYSS, True)], [('in milliseconds, every number linked to its record', 10.5, ABYSS, False)]], spacing=4)
     s.line(2.95, 3.72, 3.3, 3.72, CYAN)
     s.line(5.2, 3.72, 5.6, 3.72, CYAN)
-    s.label(3.3, 4.65, 4.3, 0.55, [[('Connectors only read. NAVIFI never writes back to a system of record.', 11, AMBER, True)]],
+    s.label(3.3, 4.65, 4.3, 0.55, [[('Connectors only read. HAWSIR never writes back to a system of record.', 11, AMBER, True)]],
             align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.TOP)
     h = s.shot('evidence', 0.6, 5.6, 3.1, color=CYAN_DIM, crop=(1571, 1605, 2681, 2105))
     s.label(3.9, 5.6, 3.7, h, [[('The provenance panel: how many records each system supplied, all read-only.', 11, SOFT, False)]],
@@ -999,10 +1081,10 @@ def slide_a_data():
         'CI fails if that file drifts from the code',
     ]], anchor=MSO_ANCHOR.TOP, spacing=4)
     s.notes(
-        "Where the data comes from. NAVIFI reads the records the ship already keeps, through read-only connectors "
+        "Where the data comes from. HAWSIR reads the records the ship already keeps, through read-only connectors "
         "shaped like OMMS-NG, R-Supply, NSIPS, the watchbill and the rest. Each change arrives as a time-stamped "
         "event with its source record attached, and the mission is recomputed in milliseconds. Nobody types a "
-        "status twice, and NAVIFI never writes back.\n\n"
+        "status twice, and HAWSIR never writes back.\n\n"
         "Bad data is the normal case, so the engine flags it instead of asking a Sailor to reconcile it: missing "
         "values get a conservative assumption, stale ones are flagged on the input that controls, contradictions "
         "plan on the worse value, and malformed records are rejected.\n\n"
@@ -1010,11 +1092,12 @@ def slide_a_data():
         "file mapping 48 NIST 800-53 controls that CI regenerates and checks. All records here are synthetic.")
 
 
-def slide_a_impact():
+# ================================================================ what it gives back
+def slide_impact():
     s = Slide()
-    appendix_header(s, 'A2', 'BEFORE AND AFTER',
-                    'Our tabletop comparison for one change landing mid-watch. Not measured fleet data yet.')
-    cols = [('AFTER A CHANGE LANDS', 0.6, 3.9), ('TODAY', 4.6, 2.1), ('WITH NAVIFI', 6.8, 2.2), ('HOW', 9.1, 3.65)]
+    s.header('BEFORE AND AFTER', 'What it gives back to the watch', [
+        ('Our tabletop comparison for one change landing mid-watch. Not measured fleet data yet.', 14, SOFT, False)])
+    cols = [('AFTER A CHANGE LANDS', 0.6, 3.9), ('TODAY', 4.6, 2.1), ('WITH HAWSIR', 6.8, 2.2), ('HOW', 9.1, 3.65)]
     for name, x, w in cols:
         s.label(x + 0.2, 1.95, w - 0.2, 0.3, [[(name, 11, MUTE, True)]])
     rows = [
@@ -1043,17 +1126,18 @@ def slide_a_impact():
         "This is what we think it gives back to the watch, for one change landing mid-watch. The 'today' column is "
         "our own tabletop estimate, not measured fleet data, and we say so in the app too.\n\n"
         "Today a defensible answer takes 30 to 60 minutes of pulling the CASREP, calling supply, checking the "
-        "watchbill and redoing the whiteboard. With NAVIFI it is recomputed in milliseconds when the report lands, "
+        "watchbill and redoing the whiteboard. With HAWSIR it is recomputed in milliseconds when the report lands, "
         "on one screen, and every number links back to its record. The nonlinear effects and the bad data in our "
         "test cases are all caught, and every decision lands on a hash-chained log instead of a notebook.\n\n"
         "To make it real, the first 30 days are read-only exports from one DDG and three watch teams running this "
         "same comparison against today's process.")
 
 
-def slide_a_watch():
+# ================================================================ built for the person on watch
+def slide_watch():
     s = Slide()
-    appendix_header(s, 'A3', 'THE SAILOR AT THE CONSOLE',
-                    'One screen, plain words, and it keeps working when the ship goes quiet.')
+    s.header('THE SAILOR AT THE CONSOLE', 'Built for the person on watch', [
+        ('One screen, plain words, and it keeps working when the ship goes quiet.', 14, SOFT, False)])
     h = s.shot('watch_mcm', 0.6, 1.85, 2.75, color=CYAN_DIM, crop=(2936, 356, 3829, 1890))
     s.label(0.6, 1.85 + h + 0.08, 2.75, 0.3, [[('The written brief on the watch floor', 10.5, MUTE, False)]])
     beats(s, 3.75, 1.9, 4.7, [
@@ -1086,10 +1170,11 @@ def slide_a_watch():
         "What we have not done is put it in front of a real watch team. That is the first thing in the 30-day plan.")
 
 
-def slide_a_slack():
+# ================================================================ slack is not margin
+def slide_slack():
     s = Slide()
-    appendix_header(s, 'A4', 'THE IDEA UNDER THE ENGINE',
-                    "The late part gets the attention. The input that controls the mission often isn't the late one.")
+    s.header('THE IDEA UNDER THE ENGINE', 'Slack is not margin', [
+        ("The late part gets the attention. The input that controls the mission often isn't the late one.", 14, SOFT, False)])
     s.label(0.6, 1.9, 8.8, 0.75, [
         [('A radar repair: ', 14, INK, True),
          ('part due 1200, qualified team free at 1400, a 3-hour job, needed by 1800.', 14, SOFT, False)],
@@ -1140,60 +1225,11 @@ def slide_a_slack():
         "countermeasures thread.")
 
 
-def slide_a_broke():
+# ================================================================ beyond the surface fleet
+def slide_domains():
     s = Slide()
-    appendix_header(s, 'A5', 'WHAT WE HIT', 'Each fix is in the scripts now, so the next node will not hit them.')
-    items = [
-        ('WED 21:58', "MinIO's public images were gone",
-         'MinIO stopped publishing the images the storage chart pulled.',
-         'Pull the Chainguard build that uds-k3d uses.'),
-        ('WED 22:07', 'The registry kept failing',
-         'A second registry pod shared the volume, and SELinux relabels it for the newest pod, locking the older one out.',
-         'Pin the Zarf registry to one replica.'),
-        ('WED 23:03', "UDS Core wouldn't install",
-         "RKE2 1.36 ships Gateway API CRDs in its Traefik chart, and they blocked UDS Core's own.",
-         'Set ingress-controller to none, which skips both charts.'),
-        ('THU 01:11', 'Logs and backups lost the API',
-         "Narrowing Loki and Velero to MinIO also removed the rule that let them reach the Kubernetes API.",
-         'Add an explicit Kubernetes API rule for the pods that need it.'),
-    ]
-    CW, CG, CY, CH = (12.15 - 3 * 0.25) / 4, 0.25, 1.9, 4.0
-    for i, (when, title, why, fix) in enumerate(items):
-        x = 0.6 + i * (CW + CG)
-        s.card(x, CY, CW, CH, RED)
-        s.label(x + 0.25, CY + 0.25, CW - 0.5, 0.25, [[(when, 11, MUTE, True)]])
-        s.label(x + 0.25, CY + 0.55, CW - 0.5, 0.65, [[(title, 15, INK, True)]], anchor=MSO_ANCHOR.TOP)
-        s.label(x + 0.25, CY + 1.3, CW - 0.5, 1.6, [[('WHY', 10, AMBER, True)], [(why, 11.5, SOFT, False)]],
-                anchor=MSO_ANCHOR.TOP, spacing=3)
-        s.label(x + 0.25, CY + 2.75, CW - 0.5, 1.1, [[('FIX', 10, GREEN, True)], [(fix, 11.5, INK, False)]],
-                anchor=MSO_ANCHOR.TOP, spacing=3)
-        if i < 3:
-            s.line(x + CW + 0.03, CY + 0.37, x + CW + CG - 0.03, CY + 0.37, MUTE, width=1.25)
-
-    s.box(0.6, 6.45, 12.15, 0.74, fill=HULL, line=EDGE, radius=0.12)
-    stats = [('4 fixes', 'each one now in the scripts'), ('10 of 10', 'UDS packages ready'),
-             ('45 pods', 'running and ready, none unhealthy'), ('27', 'AWS resources from Terraform')]
-    SWS = 12.15 / len(stats)
-    for i, (big, small) in enumerate(stats):
-        sx = 0.6 + i * SWS
-        s.label(sx + 0.25, 6.5, SWS - 0.35, 0.64, [[(big, 17, CYAN, True)], [(small, 10.5, SOFT, False)]])
-        if i:
-            s.line(sx, 6.57, sx, 7.07, EDGE, width=1, head=False)
-    s.notes(
-        "Four things broke while we stood up the cluster, in the order we hit them on Wednesday night.\n\n"
-        "MinIO's public images were gone, so we pull the Chainguard build that uds-k3d uses. The registry kept "
-        "failing because a second pod shared its volume and SELinux relabels the volume for the newest pod, so we "
-        "pinned it to one replica. UDS Core would not install because RKE2 1.36 ships its own Gateway API CRDs, so "
-        "we turned RKE2's ingress off entirely. And when we narrowed Loki and Velero's network access down to "
-        "MinIO, they lost the Kubernetes API, so they now get an explicit rule for it.\n\n"
-        "Each fix is committed in the install scripts. As of Thursday morning, all ten UDS packages are ready and "
-        "45 pods are running with none unhealthy.")
-
-
-def slide_a_domains():
-    s = Slide()
-    appendix_header(s, 'A6', 'OTHER SHIPS, OTHER DOMAINS',
-                    "Connor's engine keeps the core general and puts the domain knowledge in packs.")
+    s.header('OTHER SHIPS, OTHER DOMAINS', 'Beyond the surface fleet', [
+        ("Connor's engine keeps the core general and puts the domain knowledge in packs.", 14, SOFT, False)])
     core = s.box(0.6, 1.9, 8.0, 1.0, fill=HULL, line=CYAN, line_w=1.25)
     s.text(core, [[('Mission engine core', 15, INK, True)],
                   [('Timelines, stock levels, the controlling chain, slack vs margin, options, Monte Carlo, hash-chained decisions',
@@ -1205,7 +1241,7 @@ def slide_a_domains():
         ('Airlift pack', VIOLET, 'Flight legs, ground time, checklist items',
          'REACH 417', 'A C-17A on three legs, Dover to Diego Garcia', False),
         ('The next domain', MUTE, 'A new pack of factor tables and routines, not an engine rewrite',
-         'NAVIFI classic', "The app's radar repair case passes unchanged on this engine", True),
+         'HAWSIR classic', "The app's radar repair case passes unchanged on this engine", True),
     ]
     for i, (name, color, what, scen, scen_body, dashed) in enumerate(packs):
         x = 0.6 + i * (PW + 0.25)
@@ -1223,7 +1259,7 @@ def slide_a_domains():
 
     RX, RW = 8.95, 3.8
     s.card(RX, 1.9, RW, 3.0, CYAN)
-    s.label(RX + 0.25, 2.1, RW - 0.5, 0.32, [[('In the NAVIFI app today', 14, CYAN, True)]])
+    s.label(RX + 0.25, 2.1, RW - 0.5, 0.32, [[('In the HAWSIR app today', 14, CYAN, True)]])
     s.label(RX + 0.25, 2.6, RW - 0.5, 2.2, [[('›  ', 12.5, CYAN, True), (b, 12.5, INK, False)] for b in [
         'Four mission threads on one engine',
         'Two ship classes, three hulls',
@@ -1268,10 +1304,18 @@ def export_previews(pptx):
 def main():
     BUILD.mkdir(exist_ok=True)
     OUT.mkdir(exist_ok=True)
-    for build in (slide_title, slide_team, slide_terms, slide_digital_thread, slide_question, slide_thread, slide_decides, slide_break, slide_missions,
-                  slide_platform_built, slide_platform_arch, slide_ship_arch, slide_where,
-                  slide_appendix, slide_a_data, slide_a_impact, slide_a_watch, slide_a_slack, slide_a_broke,
-                  slide_a_domains):
+    slides = (
+        # who we are and the problem
+        slide_title, slide_team, slide_question, slide_terms, slide_digital_thread, slide_mission_eng,
+        # what it does for the watch
+        slide_thread, slide_impact, slide_data, slide_watch, slide_decides,
+        # how it works and how it holds up
+        slide_slack, slide_break, slide_missions, slide_domains,
+        # getting it to the fleet
+        slide_platform_built, slide_platform_arch, slide_ship_arch,
+        slide_where,
+    )
+    for build in slides:
         build()
     pptx = OUT / f'{NAME}.pptx'
     prs.save(pptx)
