@@ -1,0 +1,21 @@
+{
+  "name": "@hawsir/mission-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline-first, deterministic mission consequence engine: timelines, stocks over time, controlling constraints, margins, bounded options, governed facts, and hash-chained decisions. Core engine plus domain packs (naval, airlift).",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "demo": "tsx demo/run.ts",
+    "demo:airlift": "tsx demo/run.ts airlift",
+    "demo:classic": "tsx demo/run.ts classic"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.19.4",
+    "typescript": "~5.8.3",
+    "vitest": "^3.1.4"
+  }
+}
