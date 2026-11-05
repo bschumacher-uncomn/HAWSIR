@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/v0.89.0/zarf.schema.json
+#
+# The HAWSIR deck at slides.<domain>, built from one git commit by infra/slides/deploy.sh.
+# A static site: nginx serving the slide images, speaker notes, PDF and PPTX.
+kind: ZarfPackageConfig
+metadata:
+  name: hawsir-slides
+  description: The HAWSIR deck as a static site at slides.<domain>, open to anyone with the URL
+  version: "###ZARF_PKG_TMPL_IMAGE_TAG###"
+  architecture: amd64
+
+constants:
+  # Fixed at package create time, so a package always deploys the image it carries.
+  - name: IMAGE_TAG
+    value: "###ZARF_PKG_TMPL_IMAGE_TAG###"
+
+components:
+  - name: slides
+    description: Slide viewer, speaker notes and deck downloads
+    required: true
+    manifests:
+      - name: slides
+        namespace: slides
+        files:
+          - manifests/slides.yaml
+    images:
+      # Built on the node and not pushed anywhere; Zarf takes it from the local
+      # Docker daemon when the registry lookup fails.
+      - ghcr.io/navifi/hawsir-slides:###ZARF_PKG_TMPL_IMAGE_TAG###
+    actions:
+      onDeploy:
+        after:
+          - description: Wait for the slide server to come up
+            wait:
+              cluster:
+                kind: Deployment
+                name: slides
+                namespace: slides
+                condition: Available

@@ -24,7 +24,7 @@ variable "domain" {
 variable "public_hosts" {
   description = "Hosts on the tenant gateway that anyone may reach, as <host>.<domain>. Must match the hosts the apps expose in their UDS Package."
   type        = list(string)
-  default     = ["navifi"]
+  default     = ["navifi", "slides"]
 
   validation {
     # An ALB rule takes at most five condition values.

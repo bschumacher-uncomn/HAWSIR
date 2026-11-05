@@ -1,0 +1,117 @@
+{
+ "title": "HAWSIR · FleetHacker Norfolk 2026",
+ "slides": [
+  {
+   "title": "HAWSIR",
+   "notes": "HAWSIR is a mission consequence engine for the watch floor: when status reports land, it shows which one actually controls the mission, what it costs, and which bounded options recover it.\n\nWe built it this week. Tuesday was the engine and the watch floor. Wednesday was the executable mission thread; Connor also wrote a standalone mission engine, and we built the video. Wednesday night into Thursday we stood up a real cluster on AWS, on the same stack a ship would run, and deployed HAWSIR to it.\n\nEverything you will see uses synthetic data, and a human makes every decision."
+  },
+  {
+   "title": "A two-day sprint",
+   "notes": "We're Bryce and Connor, and the two of us built this in a two-day sprint.\n\nBryce built the HAWSIR app, the watch floor, mission thread, decision log and evidence screens, and stood up the lab cluster it runs on. Connor built the standalone mission engine: the dependency graph, Monte Carlo, the decision ledger and the naval and airlift mission packs.\n\nIf you have questions, or a mission you want to see run through it, our emails are on the slide."
+  },
+  {
+   "title": "Four reports land. Which one breaks the mission?",
+   "notes": "We started from one question: when four status reports land at once, which one actually breaks the mission?\n\nToday the Sailor is the integration layer: pull the CASREP, call supply, check the watchbill, redo the whiteboard. Our own tabletop estimate is 30 to 60 minutes per change; that is our estimate, not fleet data.\n\nHAWSIR reads the records of eight systems read-only (OMMS-NG, R-Supply, NSIPS, SKED, DRRS-N, the watchbill, MVCS and AMHS; synthetic for now), puts them in one picture, and recomputes in milliseconds. Every number links to its source record, and nothing is written back."
+  },
+  {
+   "title": "MBSE, mission engineering and mission readiness",
+   "notes": "Three terms before the demo, because HAWSIR sits where they meet.\n\nMBSE, model-based systems engineering, designs a system as one connected model instead of a stack of documents, so you can see what each system needs to work: parts, maintenance, a qualified person.\n\nMission engineering starts from the mission instead of the platform. It breaks a mission into a thread of tasks, systems, people and timing, and engineers across all of them. In our demo that is Operation Open Passage: a USV and a helo survey the channel in parallel, an analyst reviews both, and the report is due at 1800.\n\nMission readiness is whether a unit can do its missions, now and when they are needed. The Navy reports it in DRRS-N against mission essential tasks as Y, Q or N. Today a Sailor joins these by hand: the mission thread lives in a plan, readiness is reported system by system, and the whiteboard connects them."
+  },
+  {
+   "title": "How mission engineering threads into readiness",
+   "notes": "This is how mission engineering threads into readiness, and it is the idea the rest of the demo runs on.\n\nStart with the mission: a mine assessment of the Thimble Shoal approach, due by 1800. Mission engineering turns it into a thread: six lanes of tasks and handoffs with their timing. The system models say what each piece needs: USV-1, the MH-60S and the analyst each need parts, maintenance or a qualified person. The ship's own records say where those stand right now. Put together, readiness comes out per mission: MCM is N, an hour and fifteen minutes short, controlled by OS1 Vega's watch.\n\nAnd it traces back. Every answer points to the task, the system and the record behind it.\n\nToday that thread is broken: the mission plan sits in a model or a slide, readiness is reported system by system, and a Sailor joins them on a whiteboard. HAWSIR makes the thread run.\n\nWhat is not done yet: we write the thread and the dependencies by hand. Reading them straight from the engineering model is the next link."
+  },
+  {
+   "title": "One mission, from its phases down to the systems it rides on",
+   "notes": "This is mission engineering made concrete, on the demo mission.\n\nAt the top is the mission: assess the Thimble Shoal approach lanes for the commander by 1800, so the task group can transit at 2000. It runs in three phases: assess the approach, the commander's decision, and the transit.\n\nThe assess phase is a thread of tasks: a USV sonar survey and an MH-60S airborne survey run in parallel, and both feed an analysis step that needs sonar and airborne evidence and a qualified reviewer. That goes to the commander, who decides on the transit.\n\nUnder each task is the system of systems it rides on: the USV, its sonar, its operators and its control link; the helo, its aircrew and the mission computer; the analysis software and the reviewer. Each one is tagged with the record that reports it: OMMS-NG, DRRS-N, the watchbill, MVCS, the helo detachment.\n\nRead it bottom-up at 1000. The USV and helo delays landed first and look bigger, but they are absorbed. The one that controls is the watchbill: OS1 Vega, the only qualified reviewer, is on the CIC watch from 1300 to 1645. The review cannot start until 1645, the assessment is ready at 1915, an hour and fifteen minutes late, and the commander's decision and the transit slip with it. All of this is synthetic data."
+  },
+  {
+   "title": "We made the mission itself executable",
+   "notes": "We took the mine countermeasures mission for USS Cape Charles and made it an executable thread: six swimlanes from the mission commander to the MH-60S detachment, recomputed on every status report.\n\nAt 1000 four reports are in. The engine shows that the one controlling the end time is the PMA reviewer's 1300 to 1645 absence, not the degraded USV or helo: minus 1 hour 15, not ready.\n\nThe bounded options are simulated on the same thread. Reassigning a qualified reviewer recovers to plus 1 hour 30."
+  },
+  {
+   "title": "What it gives back to the watch",
+   "notes": "This is what we think it gives back to the watch, for one change landing mid-watch. The 'today' column is our own tabletop estimate, not measured fleet data, and we say so in the app too.\n\nToday a defensible answer takes 30 to 60 minutes of pulling the CASREP, calling supply, checking the watchbill and redoing the whiteboard. With HAWSIR it is recomputed in milliseconds when the report lands, on one screen, and every number links back to its record. The nonlinear effects and the bad data in our test cases are all caught, and every decision lands on a hash-chained log instead of a notebook.\n\nTo make it real, the first 30 days are read-only exports from one DDG and three watch teams running this same comparison against today's process."
+  },
+  {
+   "title": "Nothing typed twice",
+   "notes": "Where the data comes from. HAWSIR reads the records the ship already keeps, through read-only connectors shaped like OMMS-NG, R-Supply, NSIPS, the watchbill and the rest. Each change arrives as a time-stamped event with its source record attached, and the mission is recomputed in milliseconds. Nobody types a status twice, and HAWSIR never writes back.\n\nBad data is the normal case, so the engine flags it instead of asking a Sailor to reconcile it: missing values get a conservative assumption, stale ones are flagged on the input that controls, contradictions plan on the worse value, and malformed records are rejected.\n\nThe accreditation paperwork comes from the code too: an SBOM and signature on every build, and an OSCAL file mapping 48 NIST 800-53 controls that CI regenerates and checks. All records here are synthetic."
+  },
+  {
+   "title": "Built for the person on watch",
+   "notes": "Built for the person on watch. The watch floor gives five answers, always in the same order: is it up now, will it be up when needed, what controls it, how much margin is left, and what the options are.\n\nPlain words come first: a written brief on top and the numbers underneath. Anything the AI wrote is violet and labelled, and with no model available it falls back to a template, so the answer never changes. One STOP button halts every recommendation, and the stop is logged. Everything is reachable from the keyboard.\n\nFlip the ship to EMCON and nothing leaves, but the engine, map, simulation and audit all keep working.\n\nWhat we have not done is put it in front of a real watch team. That is the first thing in the 30-day plan."
+  },
+  {
+   "title": "The AI explains. A person decides.",
+   "notes": "We kept the AI out of the math on purpose. The engine is deterministic: same inputs, same answer. The language model only explains the answer, and with it switched off the answer is identical.\n\nThe watchstander approves, rejects or hits STOP. Approving applies a planning assumption, never an order, and the source records stay unchanged. Every decision goes on a hash-chained log; tamper with it and verification catches it, then restores from the edge copy."
+  },
+  {
+   "title": "Slack is not margin",
+   "notes": "This is the one idea under the engine: slack is not margin.\n\nA radar repair. The part is due at 1200, the qualified team is free at 1400, the job takes three hours, and it is needed by 1800. It is ready at 1700, an hour of margin, and the team controls, not the part.\n\nSo the part can slip two hours and nothing changes; after that it eats the hour of margin; past three hours the mission fails. The team has no slack at all: one hour late and the mission fails. Everyone chases the late part, and the thing that actually controls is somewhere else.\n\nEvery readiness rule only moves one way, so a later input never makes the mission earlier, and bisection finds both numbers exactly for every input. On the right is the same check in the app, on the mine countermeasures thread."
+  },
+  {
+   "title": "Twelve ways a real watch could trip it up",
+   "notes": "Then we tried to break it. We wrote twelve failure cases a real watch would hit: missing, stale, contradictory and malformed data; losing the link in EMCON; the language model being unavailable; and hard problems like a nonlinear consequence, a hidden cliff, and a case where no single fix works. The app runs every one live against the engine.\n\nBehind that are 39 app tests, and Connor's new standalone engine has 48 of its own.\n\nWe also wrote down what it does not do yet: durations are planner estimates, delays are treated as independent, and it is a single-ship picture. Those limits sit on the evidence screen next to the results."
+  },
+  {
+   "title": "Then we pointed it at three more missions",
+   "notes": "We laid out the mine countermeasures thread by hand. Then we pointed the same engine at three more missions and it laid them out from their dependency graphs: air and missile defense over 21 days, a VLS reload over 72 hours, and a radar repair over 10 hours. Four threads, two ship classes, three hulls, and no changes to the engine.\n\nMission threads, system interfaces and deployment profiles are configuration, so adding a ship class is data work."
+  },
+  {
+   "title": "Beyond the surface fleet",
+   "notes": "Beyond the surface fleet. Connor's new engine keeps the core general, with timelines, stock levels, the controlling chain, slack versus margin, options, Monte Carlo and the decision log, and puts domain knowledge in packs.\n\nThere are two packs today. The naval pack runs Operation STEEL TIDE, seven hulls across a strike group and its logistics force. The airlift pack runs REACH 417, a C-17 on three legs from Dover to Diego Garcia. They work together: the naval pack calls the airlift pack to check the carrier onboard delivery flight. Crews are tracked by qualification, so who can cover a task is part of the math. A new domain is a new pack, not an engine rewrite, and the app's original radar repair case passes unchanged on it.\n\nIn the app today there are four mission threads on one engine and a 38-hull fleet picture prototype. The app still runs its own engine; wiring Connor's in is the next job. All scenario data is synthetic."
+  },
+  {
+   "title": "Built this week: a full Kubernetes platform on AWS",
+   "notes": "This week we built the platform under HAWSIR as well as the app: a real Kubernetes cluster in AWS, running the same stack we plan to run aboard ship.\n\nFive steps, all in the repo. Terraform creates the node, its firewall, IAM role, load balancer rules, TLS certificate and DNS: 27 resources in one apply. First boot hardens the RHEL 9 host with SELinux enforcing and no SSH; we get in through AWS Systems Manager. A script installs RKE2 Kubernetes. Another installs Defense Unicorns' UDS Core through Zarf, with the platform packages signature-verified. The last one takes any git commit, builds and tests it, packages it with Zarf and rolls it out.\n\nIt runs in AWS us-east-1 on one m7i.2xlarge with 8 vCPUs and 32 GiB, inside the existing lab network, behind the lab's load balancer, at navifi.uds.demo.uncomn.ai.\n\nIt was not a copy-paste install. We hit and fixed real problems: SELinux locking a second registry pod out of its storage, RKE2's newest release shipping CRDs that blocked UDS Core, MinIO pulling its public images, and our own tighter network rules cutting Loki off from the Kubernetes API."
+  },
+  {
+   "title": "One hardened node running the ship's stack",
+   "notes": "HAWSIR runs on the same stack it will use aboard ship: RHEL 9 with SELinux enforcing, RKE2 Kubernetes, and Defense Unicorns' UDS Core, all packaged with Zarf. Here it is one EC2 node behind an AWS load balancer.\n\nTraffic: the load balancer terminates TLS and serves only navifi.uds.demo.uncomn.ai to the public. Grafana, Keycloak and the UDS portal answer 404 unless the request comes from an operator IP. The node accepts traffic only from the load balancer, and there is no SSH: operators get in through AWS Systems Manager, authenticated by IAM and logged in CloudTrail.\n\nInside the cluster, UDS Core wraps HAWSIR like every other workload: Pepr admission policies, Istio ambient mTLS, deny-by-default network policies generated from the app's Package, Falco runtime detection, and central logs and metrics.\n\nDelivery: one command takes any git commit, runs typecheck and tests in the image build, wraps the image in a Zarf package with an SBOM, and deploys it through the in-cluster registry, the same way the air-gapped ship bundle works. The lab differs only where an AWS demo needs it: TLS at the load balancer and sign-in off so the demo opens without an account. The ship build adds DISA STIG, FIPS and Keycloak SSO."
+  },
+  {
+   "title": "The same stack aboard, built for DDIL",
+   "notes": "This is the same picture aboard ship. It is the design, not something we have deployed on a hull. Everything in amber is what changes from the lab cluster on the previous slide; everything else is the same software we ran this week.\n\nIt is built for DDIL: installed air-gapped, then it runs whatever the link is doing. Watchstanders reach HAWSIR over the ship's LAN with a CAC, through Keycloak. It needs no shore link to run, and there is no load balancer: TLS ends at the Istio gateway. When there is a link, the decision log goes ashore; in EMCON nothing leaves at all.\n\nThe rack runs RHEL 9 with the DISA STIG and FIPS mode, and RKE2 with the CIS profile across three edge nodes. UDS Core uses Iron Bank images. The optional AI narrator runs in the cluster, so it works with the link down too.\n\nDelivery: pier side, connected, we build one UDS bundle carrying Zarf init, UDS Core and HAWSIR, with the model weights inside. It goes aboard by sneakernet or over a degraded link, and nothing is downloaded at sea.\n\nWith the link up, the audit log forwards ashore in batches over SATCOM. In DDIL it trickles one entry at a time and uses a local model or template text. In EMCON nothing leaves the ship, and the engine, map, simulation and audit all keep working."
+  },
+  {
+   "title": "What's real, what isn't yet, and what's next",
+   "notes": "Straight version, three days in.\n\nReal today: it runs on the ship's stack and is live on AWS; four mission threads run on one engine; twelve failure cases run live; every decision goes on a hash-chained log; and any commit goes live in one command.\n\nNot real yet: all data is synthetic, durations are planner estimates, correlated delays are not modeled, and it is one ship at a time; the squadron roll-up is a prototype.\n\nNext: wire Connor's new mission engine into the app. Then the plan in the app: in 30 days, read-only exports from one DDG and three watch teams trying it against today's process; in 60, workflow authoring and UDS on an RKE2 edge node, which we did a version of this week; in 90, three hulls and a squadron roll-up."
+  },
+  {
+   "title": "The app, screen by screen",
+   "notes": "The appendix is the app itself, screen by screen: the fleet picture and its what-if, a mission drill-down, the Monte Carlo simulation on two scenarios, the readiness horizon, the theater map, and the other mission threads that run on the same engine. Everything here is synthetic data."
+  },
+  {
+   "title": "The whole fleet on one globe",
+   "notes": "This is the fleet picture, a labs prototype on synthetic data. 38 hulls across six numbered fleets, 12 missions and 150 inbound packages, all timed by the same engine as the single-ship screens.\n\nEach mission ring takes its readiness color and the list on the left is worst first. Every arc is a package moving toward a hull: amber has under a day of slack, red breaks its mission. The right panel lists the packages at risk, smallest slack first.\n\nThe whole fleet re-times in a fraction of a second on a laptop, which is what makes the what-if on the next slide feel instant."
+  },
+  {
+   "title": "What if three things go wrong at once?",
+   "notes": "The fleet what-if. Here we turn on three disruptions at once: an AMC airlift stand-down, the Suez Canal closed, and a typhoon closing Guam.\n\nEvery affected package is re-timed through the same engine. Six missions drop to N, and the panel names the hull that now controls each one. PROSPERITY GUARD holds, because it needs fewer destroyers than it has, so DDG-181 running late is absorbed by redundancy.\n\nThis is a sandbox: no authoritative record changes, and turning a what-if on or off is written to the decision log."
+  },
+  {
+   "title": "One mission, hull by hull",
+   "notes": "Clicking a mission flies the globe to it. CSG-14 is a carrier strike group on station in the Arabian Sea.\n\nRequirements are counted the way the fleet counts them: air and missile defense needs two of three ships. CG-183 is not ready, but the other two cover, so it is absorbed and doesn't drive the mission. What does control it is DDG-172 waiting on a SPY-1D amplifier coming by VERTREP from the oiler, which puts the mission at plus 12 hours, qualified.\n\nEvery inbound package shows its slack, and clicking a hull drills into its capabilities. Two of the hulls open straight into their full single-ship watch floor."
+  },
+  {
+   "title": "2,000 seeded futures, not one guess",
+   "notes": "The Monte Carlo screen. The deterministic engine gives one answer; this runs the same graph 2,000 times with every uncertain input drawn from a range.\n\nThe S-curves show the chance each capability is ready by any given time. On Grace Hopper five capabilities are solid and air and missile defense is the one at risk. Across futures FC1 Martinez controls it most of the time and the CFA part about one time in five, so the fix isn't just chasing the part.\n\nIt is seeded, so the same seed always gives the same answer, and it runs in the browser at thousands of futures a second. The ranges are planning assumptions, not calibrated failure rates, and the screen says that in plain words."
+  },
+  {
+   "title": "The radar repair, run 2,000 times",
+   "notes": "The same simulation on the radar repair from the 'slack is not margin' slide.\n\nMargin is a spread, not a number: most futures make 1800 with time to spare, and there is a real tail that misses. Across all 2,000 runs the qualified repair team controls readiness every time and the replacement part never does, which is the slack-versus-margin point shown statistically.\n\nThe tornado pushes each input to the ends of its range; only the team and the repair time move the answer. The deterministic engine says an hour of margin, and this shows how often that hour holds."
+  },
+  {
+   "title": "Deadlines before they hit",
+   "notes": "The readiness horizon is the look-ahead. Every capability is plotted against the voyage phases with a projected-ready mark, its earlier predictions so you can see drift, and a P10 to P90 band from the simulation.\n\nThe act-by list on the right is soonest first: when a fly-on window closes, when an off-ship request has to go out to make a difference. Underneath are the margin burn-down and the data health panel, which shows how old each feed is and counts every stale, assumed, conflicting or missing value the engine is using."
+  },
+  {
+   "title": "Where the parts and people are",
+   "notes": "The theater map puts the same graph on a chart. Grace Hopper is in Norfolk, 14 days before a BMD patrol in the eastern Med.\n\nEvery movement feeding readiness is drawn with its ETA, and the critical chain stands out: FC1 Martinez rejoining from Dam Neck. Each voyage phase lists the capabilities it needs at its start. The SPY-1D panel is notional and shows the blind sector while Array B is down.\n\nThe basemap ships with the app. There is no tile server, so the map works in EMCON."
+  },
+  {
+   "title": "Four mission threads, one engine",
+   "notes": "The same engine and screens run four mission threads. DDG readiness is three weeks out: air defense is qualified, and FC1 Martinez controls it rather than the late CFA part. The VLS reload is 72 hours at Souda Bay: air defense is not ready by two hours, and GMC Horvat on light duty controls it, not the delayed C-17. The radar repair is ten hours: ready with an hour of margin, the team controls and the part has two hours of slack.\n\nThe fourth is the mine countermeasures thread from the main deck. In every one of them, the thing that controls the mission is not the thing everyone is chasing."
+  }
+ ]
+}

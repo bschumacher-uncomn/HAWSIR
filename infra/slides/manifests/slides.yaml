@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slides
+  labels: { app.kubernetes.io/name: slides, app.kubernetes.io/part-of: hawsir }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: slides }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: slides, app.kubernetes.io/part-of: hawsir }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: nginx
+          image: "ghcr.io/navifi/hawsir-slides:###ZARF_CONST_IMAGE_TAG###"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /notes.json, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 250m, memory: 64Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            # nginx-unprivileged keeps its pid file and temp paths under /tmp
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slides
+  labels: { app.kubernetes.io/name: slides, app.kubernetes.io/part-of: hawsir }
+spec:
+  selector: { app.kubernetes.io/name: slides }
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: slides
+spec:
+  network:
+    expose:
+      - service: slides
+        selector: { app.kubernetes.io/name: slides }
+        gateway: tenant
+        host: slides
+        port: 8080

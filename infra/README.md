@@ -2,15 +2,15 @@
 
 The shipboard deployment from [docs/DEPLOY.md](../docs/DEPLOY.md), rehearsed ashore. NAVIFI runs on one EC2 node in the bd-infra lab account, on the stack it uses aboard: RHEL 9, RKE2 and Defense Unicorns' UDS Core, packaged with Zarf:
 
-**https://navifi.uds.demo.uncomn.ai**
+**https://navifi.uds.demo.uncomn.ai**, and the deck at **https://slides.uds.demo.uncomn.ai**
 
-Terraform creates the node and its place behind the lab's existing load balancer. Three scripts on the node install RKE2, install UDS Core, and build and deploy NAVIFI from any git commit.
+Terraform creates the node and its place behind the lab's existing load balancer. Scripts on the node install RKE2, install UDS Core, and build and deploy NAVIFI and the deck from any git commit.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  user([Anyone]) -->|"HTTPS navifi.uds.demo.uncomn.ai"| alb
+  user([Anyone]) -->|"HTTPS navifi. and slides.uds.demo.uncomn.ai"| alb
   opr([Operator IP]) -->|"HTTPS any other host under<br/>uds.demo.uncomn.ai"| alb
   ssm([Operator]) -->|SSM session, no SSH| node
 
@@ -21,6 +21,7 @@ flowchart LR
         tgw["Istio tenant gateway<br/>NodePort 30080"]
         agw["Istio admin gateway<br/>NodePort 30081"]
         app["navifi namespace<br/>NAVIFI + audit PVC"]
+        deck["slides namespace<br/>the deck, nginx"]
         core["UDS Core 1.14<br/>Pepr policy · Istio ambient mTLS · Keycloak<br/>Falco · Vector/Loki · Prometheus/Grafana · Velero"]
         zarf["Zarf registry + agent"]
         store["local-path StorageClass<br/>MinIO (Loki, Velero)"]
@@ -28,12 +29,13 @@ flowchart LR
     end
   end
 
-  alb -->|"rule 3: NAVIFI, anyone"| tgw --> app
+  alb -->|"rule 3: NAVIFI and slides, anyone"| tgw --> app
+  tgw --> deck
   alb -->|"rule 5: Keycloak sign-in, portal (operator IPs)"| tgw --> core
   alb -->|"rule 4: Grafana, Keycloak admin (operator IPs)"| agw --> core
 ```
 
-Only NAVIFI is public. Every other host under the domain, on either gateway, is forwarded only for source addresses in `operator_cidrs` (empty by default), and everyone else gets a 404 from the ALB (rule 6).
+Only NAVIFI and the slides are public (`public_hosts`). Every other host under the domain, on either gateway, is forwarded only for source addresses in `operator_cidrs` (empty by default), and everyone else gets a 404 from the ALB (rule 6).
 
 The lab already had a VPC, an ALB and a wildcard certificate for `*.demo.uncomn.ai`. This stack adds a node to that VPC instead of building a second network, because the lab's deploy role can create only the one load balancer named `bd-lab`. The bd-lab stack itself is never modified. This stack only adds to it: listener rules, a listener certificate for the two new wildcards, and egress rules on the ALB security group.
 
@@ -51,6 +53,7 @@ The lab already had a VPC, an ALB and a wildcard certificate for `*.demo.uncomn.
 | `cluster/uds-config.yaml` | Non-secret bundle settings: Velero's MinIO endpoint and bucket, one Zarf registry replica |
 | `cluster/install-core.sh` | Generates the node's secrets, then builds and deploys the platform bundle |
 | `app/` | Zarf package for NAVIFI (same Helm chart as the ship package) and `deploy.sh` |
+| `slides/` | Zarf package and `deploy.sh` for the deck: a static viewer for `docs/slides/`, served by nginx |
 
 ## Lab versus ship
 
@@ -114,12 +117,21 @@ infra/app/deploy.sh
 
 To ship a new commit later, run `infra/app/deploy.sh` again from `~/navifi`. It fetches first, and every commit gets its own image tag, so the Deployment always rolls.
 
+**7. Publish the deck** (about 2 minutes). Serves whatever is committed in `docs/slides/`: run `python3 deck/build_week.py`, copy the `.pptx`, `.pdf` and `.notes.json` from `deck/out/` into `docs/slides/`, commit, then:
+
+```bash
+infra/slides/deploy.sh
+```
+
+The viewer renders each PDF page to an image at build time. Arrow keys move through it, `G` shows every slide, `N` opens the speaker notes, `P` opens a presenter window that keeps the audience window in step, and `F` goes full screen. `#12` in the URL opens slide 12.
+
 ## Verify it
 
 From anywhere:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://navifi.uds.demo.uncomn.ai/api/health   # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://slides.uds.demo.uncomn.ai/notes.json   # 200
 curl -s -o /dev/null -w '%{http_code}\n' https://grafana.admin.uds.demo.uncomn.ai/      # 404 unless your IP is in operator_cidrs
 ```
 
@@ -181,7 +193,7 @@ The node is on-demand `m7i.2xlarge` (US$0.4032 an hour for the compute in us-eas
 ```bash
 terraform -chdir=infra/terraform fmt -check -recursive
 terraform -chdir=infra/terraform init -backend=false && terraform -chdir=infra/terraform validate
-shellcheck -x infra/cluster/*.sh infra/app/deploy.sh infra/terraform/user-data.sh
+shellcheck -x infra/cluster/*.sh infra/app/deploy.sh infra/slides/deploy.sh infra/terraform/user-data.sh
 uds zarf dev lint infra/cluster/prereqs
 uds zarf dev lint infra/app --set IMAGE_TAG=check
 ```

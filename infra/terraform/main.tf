@@ -2,6 +2,7 @@
 # existing bd-lab VPC behind the existing bd-lab ALB.
 #
 #   https://navifi.uds.demo.uncomn.ai      anyone          -> node:30080 -> Istio tenant gateway -> NAVIFI
+#   https://slides.uds.demo.uncomn.ai      anyone          -> node:30080 -> Istio tenant gateway -> the HAWSIR deck
 #   https://<host>.uds.demo.uncomn.ai      operator CIDRs  -> node:30080 -> Istio tenant gateway -> Keycloak sign-in, UDS portal
 #   https://<ui>.admin.uds.demo.uncomn.ai  operator CIDRs  -> node:30081 -> Istio admin gateway  -> Grafana, Keycloak admin
 #

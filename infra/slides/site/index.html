@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HAWSIR · FleetHacker Norfolk 2026</title>
+<meta name="description" content="HAWSIR, a mission consequence engine for the watch floor. What two people built in a two-day sprint at FleetHacker Norfolk 2026.">
+<meta property="og:title" content="HAWSIR · FleetHacker Norfolk 2026">
+<meta property="og:description" content="A mission consequence engine for the watch floor. Know before it breaks the mission.">
+<meta name="theme-color" content="#02060c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='%2322d3ee' stroke-width='2.5'/%3E%3C/svg%3E">
+<style>
+  :root { --bg: #02060c; --panel: #0a1726; --edge: #1e3a52; --cyan: #22d3ee; --ink: #e0f2fe; --soft: #b6ccdb; --mute: #7f9cb3; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: radial-gradient(1400px 900px at 50% 40%, #071a2c 0%, var(--bg) 70%); color: var(--ink);
+    font: 14px/1.5 Arial, Helvetica, sans-serif; overflow: hidden; }
+  button, a.btn { font: inherit; color: var(--soft); background: transparent; border: 1px solid var(--edge); border-radius: 4px;
+    padding: 6px 11px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+  button:hover, a.btn:hover { color: var(--ink); border-color: var(--cyan); }
+  button.on { color: var(--cyan); border-color: var(--cyan); }
+  a.btn.dl { display: inline-flex; align-items: center; gap: 6px; color: var(--cyan); border-color: rgba(34, 211, 238, .45); }
+  a.btn.dl:hover { background: rgba(34, 211, 238, .1); }
+  a.btn.dl svg { width: 14px; height: 14px; }
+  kbd { font: 11px/1 ui-monospace, monospace; color: var(--mute); border: 1px solid var(--edge); border-radius: 3px; padding: 2px 4px; margin-left: 6px; }
+
+  #app { display: grid; grid-template-rows: 1fr auto; grid-template-columns: minmax(0, 1fr); height: 100%; }
+  #main { display: grid; grid-template-columns: 1fr auto; min-height: 0; }
+  #stage { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 18px; }
+  #slide { max-width: 100%; max-height: 100%; aspect-ratio: 16 / 9; border-radius: 6px; box-shadow: 0 0 0 1px var(--edge), 0 20px 60px -20px #000;
+    user-select: none; -webkit-user-drag: none; background: #000; }
+  .hit { position: absolute; top: 0; bottom: 0; width: 30%; cursor: pointer; }
+  .hit.prev { left: 0; } .hit.next { right: 0; }
+
+  .side { display: flex; flex-direction: column; min-height: 0; }
+  #notes { flex: 1; min-height: 0; width: 0; overflow: hidden; background: var(--panel); border-left: 1px solid var(--edge); transition: width .2s; }
+  #notes.open { width: min(420px, 38vw); }
+  #notes .in { width: min(420px, 38vw); height: 100%; overflow-y: auto; padding: 22px 24px; }
+  #notes h2 { margin: 0 0 4px; font-size: 11px; letter-spacing: .14em; color: var(--cyan); }
+  #notes .t { margin: 0 0 14px; font-size: 17px; font-weight: bold; }
+  #notes p { margin: 0 0 12px; color: var(--soft); font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
+
+  #bar { display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-top: 1px solid var(--edge); background: rgba(2, 6, 12, .85); }
+  #bar .brand { font-weight: bold; letter-spacing: .08em; } #bar .brand span { color: var(--cyan); }
+  #bar .grow { flex: 1; }
+  #count { font: 13px ui-monospace, monospace; color: var(--soft); min-width: 64px; text-align: center; }
+  #progress { position: fixed; left: 0; bottom: 0; height: 2px; background: var(--cyan); transition: width .2s; }
+
+  body.full #bar, body.full .hit { opacity: 0; transition: opacity .4s; }
+  body.full.awake #bar { opacity: 1; }
+  body.full #stage { padding: 0; }
+  body.full #slide { border-radius: 0; box-shadow: none; }
+
+  #grid { position: fixed; inset: 0; display: none; overflow-y: auto; padding: 28px; background: rgba(2, 6, 12, .96); z-index: 5; }
+  #grid.open { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; align-content: start; }
+  #grid figure { margin: 0; cursor: pointer; }
+  #grid img { width: 100%; aspect-ratio: 16 / 9; border-radius: 4px; box-shadow: 0 0 0 1px var(--edge); display: block; }
+  #grid figure.cur img, #grid figure:hover img { box-shadow: 0 0 0 2px var(--cyan); }
+  #grid figcaption { margin-top: 6px; font-size: 12.5px; color: var(--soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #grid figcaption b { color: var(--cyan); margin-right: 6px; }
+
+  /* presenter view: ?presenter, opened with P and kept in step with the audience window */
+  body.presenter #main { grid-template-columns: 1.6fr 1fr; gap: 18px; padding: 18px; }
+  body.presenter #stage { padding: 0; flex-direction: column; gap: 14px; align-items: stretch; justify-content: flex-start; }
+  body.presenter #slide { width: 100%; height: auto; max-height: none; }
+  body.presenter .side { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+  body.presenter #notes { width: auto; border: 1px solid var(--edge); border-radius: 6px; flex: 1; }
+  body.presenter #notes .in { width: auto; }
+  body.presenter #notes p { font-size: 18px; }
+  #next, #clock { display: none; }
+  body.presenter #next { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 6px; box-shadow: 0 0 0 1px var(--edge); opacity: .85; }
+  body.presenter #clock { display: block; font: 28px ui-monospace, monospace; color: var(--cyan); }
+  body.presenter .hit { display: none; }
+
+  @media (max-width: 760px) {
+    #bar .hide-sm, #bar kbd { display: none; }
+    #bar { gap: 6px; padding: 10px; } #bar button, #bar a.btn { padding: 6px 8px; } #count { min-width: 52px; }
+    #stage { padding: 6px; }
+  }
+  @media (max-width: 400px) { #bar .brand { display: none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="main">
+    <div id="stage">
+      <img id="slide" alt="">
+      <div class="hit prev" title="Previous"></div>
+      <div class="hit next" title="Next"></div>
+    </div>
+    <div class="side">
+      <img id="next" alt="Next slide">
+      <div id="clock">00:00</div>
+      <aside id="notes"><div class="in"><h2>SPEAKER NOTES</h2><div class="t" id="ntitle"></div><div id="ntext"></div></div></aside>
+    </div>
+  </div>
+  <div id="bar">
+    <div class="brand">HAWSIR<span class="hide-sm"> · <span style="color:var(--soft);font-weight:normal;letter-spacing:0">FleetHacker Norfolk 2026</span></span></div>
+    <div class="grow"></div>
+    <button id="bprev" aria-label="Previous slide">‹</button>
+    <div id="count">–</div>
+    <button id="bnext" aria-label="Next slide">›</button>
+    <div class="grow"></div>
+    <button id="bgrid" class="hide-sm">All slides<kbd>G</kbd></button>
+    <button id="bnotes" class="hide-sm">Notes<kbd>N</kbd></button>
+    <button id="bpres" class="hide-sm">Present<kbd>P</kbd></button>
+    <button id="bfull" class="hide-sm">Full screen<kbd>F</kbd></button>
+    <a class="btn dl" href="HAWSIR_this_week.pdf" download title="Download the deck as PDF"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>PDF</a>
+    <a class="btn dl" href="HAWSIR_this_week.pptx" download title="Download the deck as PowerPoint"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>PPTX</a>
+  </div>
+</div>
+<div id="grid"></div>
+<div id="progress"></div>
+<script>
+(async () => {
+  const $ = (id) => document.getElementById(id);
+  const presenter = new URLSearchParams(location.search).has('presenter');
+  if (presenter) document.body.classList.add('presenter');
+  const deck = await (await fetch('notes.json', { cache: 'no-cache' })).json();
+  const slides = deck.slides;
+  const N = slides.length;
+  const src = (i, dir = 'slides') => `${dir}/${String(i + 1).padStart(2, '0')}.jpg`;
+  const chan = 'BroadcastChannel' in window ? new BroadcastChannel('hawsir-deck') : null;
+  let cur = 0;
+
+  function show(i, from) {
+    cur = Math.max(0, Math.min(N - 1, i));
+    $('slide').src = src(cur);
+    $('slide').alt = slides[cur].title || `Slide ${cur + 1}`;
+    $('count').textContent = `${cur + 1} / ${N}`;
+    $('progress').style.width = `${((cur + 1) / N) * 100}%`;
+    $('ntitle').textContent = slides[cur].title || '';
+    $('ntext').innerHTML = '';
+    for (const para of (slides[cur].notes || 'No notes for this slide.').split(/\n\n+/)) {
+      const p = document.createElement('p');
+      p.textContent = para;
+      $('ntext').appendChild(p);
+    }
+    if (presenter) $('next').src = cur + 1 < N ? src(cur + 1) : src(cur);
+    for (const j of [cur + 1, cur - 1]) if (j >= 0 && j < N) new Image().src = src(j);
+    document.querySelectorAll('#grid figure').forEach((f, j) => f.classList.toggle('cur', j === cur));
+    if (location.hash !== `#${cur + 1}`) history.replaceState(null, '', `#${cur + 1}`);
+    if (chan && from !== 'remote') chan.postMessage(cur);
+  }
+  const go = (d) => show(cur + d);
+
+  for (let i = 0; i < N; i++) {
+    const f = document.createElement('figure');
+    f.innerHTML = `<img loading="lazy" alt=""><figcaption><b>${i + 1}</b></figcaption>`;
+    f.querySelector('img').src = src(i, 'thumbs');
+    f.querySelector('figcaption').append(slides[i].title || '');
+    f.onclick = () => { show(i); toggleGrid(false); };
+    $('grid').appendChild(f);
+  }
+
+  function toggleGrid(on = !$('grid').classList.contains('open')) {
+    $('grid').classList.toggle('open', on);
+    $('bgrid').classList.toggle('on', on);
+    if (on) document.querySelector('#grid figure.cur')?.scrollIntoView({ block: 'center' });
+  }
+  function toggleNotes() { $('bnotes').classList.toggle('on', $('notes').classList.toggle('open')); }
+  function toggleFull() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); }
+  function openPresenter() { window.open(`${location.pathname}?presenter#${cur + 1}`, 'hawsir-presenter', 'width=1280,height=760'); }
+
+  $('bprev').onclick = () => go(-1);
+  $('bnext').onclick = () => go(1);
+  document.querySelector('.hit.prev').onclick = () => go(-1);
+  document.querySelector('.hit.next').onclick = () => go(1);
+  $('bgrid').onclick = () => toggleGrid();
+  $('bnotes').onclick = toggleNotes;
+  $('bpres').onclick = openPresenter;
+  $('bfull').onclick = toggleFull;
+  document.addEventListener('fullscreenchange', () => document.body.classList.toggle('full', !!document.fullscreenElement));
+
+  let idle;
+  document.addEventListener('mousemove', () => {
+    document.body.classList.add('awake');
+    clearTimeout(idle);
+    idle = setTimeout(() => document.body.classList.remove('awake'), 2000);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) go(e.shiftKey && k === ' ' ? -1 : 1);
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) go(-1);
+    else if (k === 'Home') show(0);
+    else if (k === 'End') show(N - 1);
+    else if (k === 'g' || k === 'G') toggleGrid();
+    else if (k === 'n' || k === 'N') toggleNotes();
+    else if (k === 'f' || k === 'F') toggleFull();
+    else if ((k === 'p' || k === 'P') && !presenter) openPresenter();
+    else if (k === 'Escape') toggleGrid(false);
+    else return;
+    e.preventDefault();
+  });
+
+  let x0 = null;
+  $('stage').addEventListener('touchstart', (e) => (x0 = e.touches[0].clientX), { passive: true });
+  $('stage').addEventListener('touchend', (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+    x0 = null;
+  });
+
+  if (chan) chan.onmessage = (e) => show(e.data, 'remote');
+  window.addEventListener('hashchange', () => show(parseInt(location.hash.slice(1), 10) - 1 || 0));
+
+  if (presenter) {
+    $('notes').classList.add('open');
+    const t0 = Date.now();
+    setInterval(() => {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      $('clock').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    }, 1000);
+  }
+  show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+})();
+</script>
+</body>
+</html>

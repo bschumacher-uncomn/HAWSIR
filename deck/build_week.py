@@ -5,9 +5,12 @@ Plain Arial and native shapes, so it opens and edits the same on any machine; on
 app screenshots are images. The rubric-ordered pitch deck is deck/build.py.
 
 usage: python3 deck/build_week.py
-  -> deck/out/HAWSIR_this_week.pptx, plus a PDF and PNG previews when LibreOffice
-     and pdftoppm are installed.
+  -> deck/out/HAWSIR_this_week.pptx and .notes.json (titles and speaker notes for the
+     web viewer), plus a PDF and PNG previews when LibreOffice and pdftoppm are installed.
+     Copy the .pptx, .pdf and .notes.json into docs/slides/ to publish them; infra/slides
+     serves what is committed there.
 """
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -1516,6 +1519,19 @@ APPENDIX = (slide_appendix, slide_fleet_globe, slide_fleet_whatif, slide_fleet_m
             slide_horizon, slide_theater, slide_workflows)
 
 
+def export_notes():
+    """Slide titles and speaker notes for the web viewer (infra/slides)."""
+    slides = []
+    for sl in prs.slides:
+        runs = [r for sh in sl.shapes if sh.has_text_frame for p in sh.text_frame.paragraphs for r in p.runs]
+        title = next((r.text for r in runs if r.font.size and r.font.size >= Pt(28)), '')
+        notes = sl.notes_slide.notes_text_frame.text if sl.has_notes_slide else ''
+        slides.append({'title': title, 'notes': notes})
+    path = OUT / f'{NAME}.notes.json'
+    path.write_text(json.dumps({'title': 'HAWSIR · FleetHacker Norfolk 2026', 'slides': slides}, indent=1, ensure_ascii=False) + '\n')
+    print(path)
+
+
 def export_previews(pptx):
     soffice = shutil.which('soffice')
     if not soffice or not shutil.which('pdftoppm'):
@@ -1552,6 +1568,7 @@ def main():
     pptx = OUT / f'{NAME}.pptx'
     prs.save(pptx)
     print(pptx)
+    export_notes()
     export_previews(pptx)
 
 
