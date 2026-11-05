@@ -15,6 +15,28 @@ const click = (re) => `[...document.querySelectorAll('button')].find((b) => ${re
 const APPROVE = click('/^\\s*approve\\s*$/i');
 const CONFIRM = click('/confirm approval/i');
 const MISSION_ROW = `[...document.querySelectorAll('button')].find((b) => /T-\\d/.test(b.textContent))?.click()`;
+/** Drags the globe until a mission's label sits mid-screen (headless frames are too slow for the auto-spin to get there). */
+const globeCenterOn = (re) => async (page) => {
+  const offset = `(() => {
+    const label = [...document.querySelectorAll('.inset-0 > div[style*="translate"]')].find((d) => ${re}.test(d.textContent));
+    if (!label || +label.style.opacity < 0.5) return null;
+    const r = label.getBoundingClientRect();
+    return r.left + r.width / 2 - innerWidth / 2;
+  })()`;
+  const grab = `[[960, 620], [900, 720], [1020, 470], [960, 800]].find(([x, y]) => document.elementFromPoint(x, y)?.tagName === 'CANVAS')`;
+  for (let i = 0; i < 24; i++) {
+    const dx = await page.evaluate(offset);
+    if (dx !== null && Math.abs(dx) < 20) return;
+    const [x, y] = (await page.evaluate(grab)) ?? [960, 620];
+    const move = dx === null ? -280 : Math.max(-280, Math.min(280, -dx * 0.9));
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    for (let k = 1; k <= 12; k++) await page.mouse.move(x + (move * k) / 12, y, { steps: 2 });
+    await page.mouse.up();
+    await sleep(500);
+  }
+  throw new Error(`globe never centred on ${re}`);
+};
 
 /** Stills are 3840×2160 so the cut can push in without going soft. */
 const STILLS = [
@@ -26,6 +48,7 @@ const STILLS = [
   { name: 'thread_radar', route: '/thread?scenario=classic&reset' },
   { name: 'watch_mcm', route: '/?scenario=mcm&reset&t=10', wait: 7000 },
   { name: 'graph_mcm', route: '/graph?scenario=mcm&reset&t=10', wait: 6000 },
+  { name: 'graph_ddg', route: '/graph?scenario=ddg21&reset', wait: 6000, steps: [store("s.selectNode('p_fc1_martinez')"), 2000] },
   { name: 'edge_emcon', route: '/edge?scenario=mcm&reset', steps: [store("s.setLink('DENIED')"), 2500] },
   { name: 'evidence', route: '/evidence?scenario=mcm&reset', wait: 7000 },
   { name: 'log', route: '/log?scenario=mcm&reset&t=10', wait: 5000 },
@@ -34,6 +57,10 @@ const STILLS = [
   {
     name: 'fleet_whatif', route: '/labs/fleet', wait: 5000,
     steps: [click('/Suez Canal closed/'), 500, click('/Typhoon/'), 500, click('/AMC airlift/'), 3000],
+  },
+  {
+    name: 'fleet_pacific', route: '/labs/fleet', wait: 5000,
+    steps: [click('/Typhoon/'), 500, click('/NSIPS outage/'), 1000, globeCenterOn('/KEEN EDGE 27/'), 1500],
   },
   { name: 'sim_mcm', route: '/sim?scenario=mcm&reset&t=10', wait: 10000 },
   { name: 'sim_ddg', route: '/sim?scenario=ddg21&reset', wait: 10000 },
@@ -89,7 +116,11 @@ for (const s of STILLS) {
   await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 2 });
   await page.goto(url(s.route), { waitUntil: 'networkidle0', timeout: 60000 });
   await sleep(s.wait ?? 5000);
-  for (const step of s.steps ?? []) typeof step === 'number' ? await sleep(step) : await page.evaluate(step);
+  for (const step of s.steps ?? []) {
+    if (typeof step === 'number') await sleep(step);
+    else if (typeof step === 'function') await step(page);
+    else await page.evaluate(step);
+  }
   await page.screenshot({ path: `${OUT}stills/${s.name}.png`, type: 'png' });
   await page.close();
   console.log('still', s.name);

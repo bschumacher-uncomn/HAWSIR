@@ -1305,23 +1305,26 @@ def slide_appendix():
     screens = [
         ('fleet_globe', 'Fleet picture', 'The whole fleet on one globe'),
         ('fleet_whatif', 'Fleet what-if', 'Three disruptions at once'),
+        ('fleet_pacific', 'Fleet what-if', 'A typhoon at Guam'),
         ('fleet_mission', 'Fleet drill-down', 'One mission, hull by hull'),
+        ('graph_ddg', 'Consequence graph', 'One sailor sets air defense'),
         ('sim_ddg', 'Monte Carlo', '2,000 seeded futures'),
-        ('sim_radar', 'Monte Carlo', 'The radar repair, run 2,000 times'),
+        ('sim_radar', 'Monte Carlo', 'Radar repair, 2,000 runs'),
         ('horizon_ddg', 'Readiness horizon', 'Deadlines before they hit'),
-        ('theater_ddg', 'Theater', 'Where the parts and people are'),
+        ('theater_ddg', 'Theater', 'Where parts and people are'),
         ('thread_vls', 'Other workflows', 'Four threads, one engine'),
     ]
-    TW, G = (12.15 - 3 * 0.25) / 4, 0.25
+    TW, G = (12.15 - 4 * 0.2) / 5, 0.2
     for i, (still, name, what) in enumerate(screens):
-        x, y = 0.6 + (i % 4) * (TW + G), 1.95 + (i // 4) * 2.55
+        x, y = 0.6 + (i % 5) * (TW + G), 2.05 + (i // 5) * 2.45
         h = s.shot(still, x, y, TW, color=CYAN_DIM)
-        s.label(x, y + h + 0.1, TW, 0.25, [[(name.upper(), 10.5, CYAN, True)]])
-        s.label(x, y + h + 0.36, TW, 0.25, [[(what, 11.5, INK, False)]])
+        s.label(x, y + h + 0.1, TW, 0.25, [[(name.upper(), 10, CYAN, True)]])
+        s.label(x, y + h + 0.36, TW, 0.25, [[(what, 11, INK, False)]])
     s.notes(
-        "The appendix is the app itself, screen by screen: the fleet picture and its what-if, a mission drill-down, "
-        "the Monte Carlo simulation on two scenarios, the readiness horizon, the theater map, and the other mission "
-        "threads that run on the same engine. Everything here is synthetic data.")
+        "The appendix is the app itself, screen by screen: the fleet picture and two what-ifs, a mission "
+        "drill-down, the consequence graph, the Monte Carlo simulation on two scenarios, the readiness horizon, "
+        "the theater map, and the other mission threads that run on the same engine. Everything here is "
+        "synthetic data.")
 
 
 def slide_fleet_globe():
@@ -1369,6 +1372,31 @@ def slide_fleet_whatif():
         "decision log.")
 
 
+def slide_fleet_pacific():
+    s = app_slide('APPENDIX · FLEET WHAT-IF', 'A typhoon at Guam, and NSIPS goes down',
+                  'Two different disruptions, seen from the Western Pacific. One hits ships and cargo, the other hits people.',
+                  'fleet_pacific', [
+        ('Two toggles, two missions',
+         'KEEN EDGE 27 goes from Y to N and PACIFIC MERCY from Q to N, both in Seventh Fleet.', RED),
+        ('Red arcs into Guam',
+         'Relief cargo for T-AKE-16 at Apra Harbor is blocked, and a SPY-1D card bound for Guam is now 1 day 18 hours too late.', AMBER),
+        ('People moves slip too',
+         'With NSIPS down, orders stall: a tech rep for NSA Bahrain runs 18 hours late, an aircraft commander for FFG-189 16.', VIOLET),
+        ('Sandbox only',
+         '14 packages re-timed through the same engine. No record changes, and the what-if is written to the decision log.', CYAN),
+    ], 'Typhoon at Guam plus an NSIPS outage, globe turned to the Western Pacific. Synthetic data.')
+    s.notes(
+        "A second what-if, this time from the Western Pacific. Two toggles: a typhoon closing Guam, and an outage "
+        "of NSIPS, the Navy's personnel system.\n\n"
+        "Two Seventh Fleet missions break. KEEN EDGE 27, a combined exercise, goes from ready to not ready, and "
+        "PACIFIC MERCY, a humanitarian response, goes from qualified to not ready because the relief cargo for "
+        "T-AKE-16 at Apra Harbor is blocked. The red arcs are the packages that now break a mission, like a SPY-1D "
+        "signal processor card bound for Guam that is now a day and 18 hours too late.\n\n"
+        "The NSIPS outage reaches people rather than parts: orders stall, so a tech rep headed to NSA Bahrain and an "
+        "aircraft commander headed to FFG-189 both run late. Fourteen packages are re-timed through the same "
+        "engine, nothing touches an authoritative record, and the what-if is logged.")
+
+
 def slide_fleet_mission():
     s = Slide()
     s.header('APPENDIX · FLEET DRILL-DOWN', 'One mission, hull by hull', [
@@ -1393,6 +1421,34 @@ def slide_fleet_mission():
         "mission at plus 12 hours, qualified.\n\n"
         "Every inbound package shows its slack, and clicking a hull drills into its capabilities. Two of the hulls "
         "open straight into their full single-ship watch floor.")
+
+
+def slide_graph_ddg():
+    s = app_slide('APPENDIX · CONSEQUENCE GRAPH', 'One sailor sets air defense',
+                  'USS Grace Hopper, 14 days out. The gold line is the chain that decides when air and missile defense is ready.',
+                  'graph_ddg', [
+        ('A person, not the part',
+         'The SPY repair needs two of three qualified FCs. One is on leave, so it waits for FC1 Martinez to rejoin at Rota.', AMBER),
+        ('4 days 10 hours of margin',
+         'Ready D-5 2200, ten hours after he rejoins, against a D-0 0800 need.', CYAN),
+        ('Late costs at most 20 h',
+         'If he slips, FC2 Okafor rejoins at D-4 and takes his place. The slip budget reads capped: it eats margin, never the mission.', GREEN),
+        ('Try it before you act',
+         'The what-if slider moves his arrival and re-times the graph. Sandbox only; nothing changes a record.', VIOLET),
+    ], 'Consequence graph, DDG readiness thread at D-14 1400. Synthetic data.')
+    s.notes(
+        "The consequence graph for USS Grace Hopper, 14 days before a ballistic missile defense patrol. Every box "
+        "is an input, a person, a task or a system, and the gold line is the critical chain: the one path that "
+        "decides when air and missile defense is ready.\n\n"
+        "The surprise is that it's a person. The SPY transmitter repair needs two of the three qualified fire "
+        "controlmen. FC2 Okafor is on emergency leave, so the job waits for FC1 Martinez, who is at Aegis school "
+        "and rejoins at Rota at D-5. Repair and verification take ten hours, so air defense is ready D-5 2200 "
+        "against a D-0 0800 need: 4 days 10 hours of margin.\n\n"
+        "The inspector also shows how far he can slip. If Martinez is late, Okafor rejoins at D-4 and takes his "
+        "place, so the worst case costs 20 hours and never misses the mission. Slack versus margin again: he sets "
+        "the margin, but his slip is capped. The what-if slider lets the watch try a slip before acting, and it "
+        "changes no records.\n\n"
+        "The next slide runs this same graph 2,000 times.")
 
 
 def slide_mc_ddg():
@@ -1515,8 +1571,8 @@ def slide_workflows():
         "controls the mission is not the thing everyone is chasing.")
 
 
-APPENDIX = (slide_appendix, slide_fleet_globe, slide_fleet_whatif, slide_fleet_mission, slide_mc_ddg, slide_mc_radar,
-            slide_horizon, slide_theater, slide_workflows)
+APPENDIX = (slide_appendix, slide_fleet_globe, slide_fleet_whatif, slide_fleet_pacific, slide_fleet_mission, slide_graph_ddg,
+            slide_mc_ddg, slide_mc_radar, slide_horizon, slide_theater, slide_workflows)
 
 
 def export_notes():
