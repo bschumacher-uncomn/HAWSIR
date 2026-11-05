@@ -3,6 +3,16 @@
 mode: standalone
 replicas: 1
 
+# MinIO no longer publishes public images on quay.io or Docker Hub. This is the
+# Chainguard build that Defense Unicorns' uds-k3d dev stack runs with this
+# chart version; it carries both the server and the mc client the setup job uses.
+image:
+  repository: ghcr.io/uds-packages/minio-operator/container/chainguard/minio
+  tag: 0.20260717.120751-r16
+mcImage:
+  repository: ghcr.io/uds-packages/minio-operator/container/chainguard/minio
+  tag: 0.20260717.120751-r16
+
 rootUser: minio-root
 rootPassword: "###ZARF_VAR_MINIO_ROOT_PASSWORD###"
 
