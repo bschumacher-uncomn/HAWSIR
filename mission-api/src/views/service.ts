@@ -90,6 +90,11 @@ export class MissionViews {
   }
 
   snapshot(t: number): Snapshot {
+    // the link is live node state outside the memo key; never serve it from cache
+    return { ...this.picture(t), link: this.m.node.linkState(this.m) };
+  }
+
+  private picture(t: number): Omit<Snapshot, 'link'> {
     const m = this.m;
     return m.memo('snapshot', m.key(t), () => {
       const t0 = performance.now();
@@ -119,7 +124,6 @@ export class MissionViews {
         mission: m.id, at: t, key: m.key(t), nodes: this.nodes(ev), result, authResult, applied, impacts,
         levers: ev.build.levers.map((l) => this.lever(l)), approved: ev.assumptions, focus: ev.build.focus,
         halted: { stopped: !!stop, note: stop?.note, by: stop?.actor.id },
-        link: m.node.linkState(m),
         counts: { facts: known.length, quarantined: known.filter((f) => f.quarantine).length, decisions: m.decisions.all().filter((d) => d.at <= t + 1e-9).length },
         legFrom,
         computeMs: Math.round((performance.now() - t0) * 10) / 10,

@@ -30,6 +30,9 @@ x-api: &api
     postgres:
       condition: service_healthy
 
+# nginx resolves API_UPSTREAM once at start; an api container recreated with a
+# new IP (the two can swap) would leave the web proxying to the wrong node, so
+# each web depends on its api with `restart: true`.
 x-web: &web
   image: hawsir-web:local
   restart: unless-stopped
@@ -85,6 +88,7 @@ services:
     depends_on:
       ship-api:
         condition: service_healthy
+        restart: true
 
   shore-web:
     <<: *web
@@ -96,6 +100,7 @@ services:
     depends_on:
       shore-api:
         condition: service_healthy
+        restart: true
 
 volumes:
   pgdata:
