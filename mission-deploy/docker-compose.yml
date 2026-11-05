@@ -12,19 +12,26 @@
 # schema, `docker compose down -v` gives a clean start.
 name: hawsir
 
+# Each image is built once and shared by both nodes. Two services building the
+# same Dockerfile in parallel race in BuildKit's cache ("snapshot ... does not
+# exist"), so only shore-api and ship-web carry a build section.
+x-api-build: &api-build
+  context: ..
+  dockerfile: mission-api/Dockerfile
+
+x-web-build: &web-build
+  context: ..
+  dockerfile: Dockerfile
+
 x-api: &api
-  build:
-    context: ..
-    dockerfile: mission-api/Dockerfile
+  image: hawsir-api:local
   restart: unless-stopped
   depends_on:
     postgres:
       condition: service_healthy
 
 x-web: &web
-  build:
-    context: ..
-    dockerfile: Dockerfile
+  image: hawsir-web:local
   restart: unless-stopped
 
 services:
@@ -45,6 +52,7 @@ services:
 
   shore-api:
     <<: *api
+    build: *api-build
     environment:
       NODE_KIND: shore
       NODE_ID: shore
@@ -56,6 +64,7 @@ services:
 
   ship-api:
     <<: *api
+    pull_policy: never   # built by shore-api
     environment:
       NODE_KIND: ship
       NODE_SHIP: ddgB
@@ -68,6 +77,7 @@ services:
 
   ship-web:
     <<: *web
+    build: *web-build
     environment:
       API_UPSTREAM: http://ship-api:8820
     ports:
@@ -78,6 +88,7 @@ services:
 
   shore-web:
     <<: *web
+    pull_policy: never   # built by ship-web
     environment:
       API_UPSTREAM: http://shore-api:8820
     ports:

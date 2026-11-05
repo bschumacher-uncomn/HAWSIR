@@ -25,7 +25,7 @@ docker compose up --build
 # shore UI  http://localhost:8081   (fleet logistics / MOC)
 ```
 
-This runs one Postgres container with a database per node (`mission_ship_ddgb`, `mission_shore`), two APIs and two web containers. Both nodes serve both missions. After pulling a schema change, run `docker compose down -v` once to start clean.
+This runs one Postgres container with a database per node (`mission_ship_ddgb`, `mission_shore`), two APIs and two web containers. Each image is built once and shared by both nodes. Both nodes serve both missions. After pulling a schema change, run `docker compose down -v` once to start clean.
 
 ### Local, no containers
 
