@@ -48,7 +48,7 @@ The lab already had a VPC, an ALB and a wildcard certificate for `*.demo.uncomn.
 | `cluster/rke2-config.yaml` | RKE2 server config: SELinux on, bundled ingress controllers off |
 | `cluster/prereqs/` | Zarf package deployed before Zarf init: default StorageClass, MinIO and its network policy |
 | `cluster/uds-bundle.yaml` | Platform bundle: prereqs, Zarf init v0.89.0, UDS Core 1.14.3, with the lab overrides |
-| `cluster/uds-config.yaml` | Non-secret bundle settings: Velero's MinIO endpoint and bucket |
+| `cluster/uds-config.yaml` | Non-secret bundle settings: Velero's MinIO endpoint and bucket, one Zarf registry replica |
 | `cluster/install-core.sh` | Generates the node's secrets, then builds and deploys the platform bundle |
 | `app/` | Zarf package for NAVIFI (same Helm chart as the ship package) and `deploy.sh` |
 
@@ -114,6 +114,22 @@ infra/app/deploy.sh
 
 To ship a new commit later, run `infra/app/deploy.sh` again from `~/navifi`. It fetches first, and every commit gets its own image tag, so the Deployment always rolls.
 
+## Verify it
+
+From anywhere:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://navifi.uds.demo.uncomn.ai/api/health   # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://grafana.admin.uds.demo.uncomn.ai/      # 404 unless your IP is in operator_cidrs
+```
+
+On the node:
+
+```bash
+kubectl get packages.uds.dev -A   # every UDS Package, NAVIFI's included, is Ready
+kubectl get pods -A               # all Running, apart from RKE2's completed install jobs
+```
+
 ## How NAVIFI gets deployed
 
 `deploy.sh` exports the commit with `git archive`, builds the image with the repo's Dockerfile (which runs typecheck and the engine tests before it builds), and tags it `<version>-<commit>`. `uds zarf package create` wraps that image and `deploy/chart/navifi` into a Zarf package with an SBOM, taking the image from the local Docker daemon because it was never pushed to a registry. `uds zarf package deploy` then pushes the image into the in-cluster Zarf registry and installs the chart.
@@ -128,7 +144,7 @@ The chart emits a UDS `Package` resource. From it, the UDS operator exposes `nav
 - **Pods on the pod network cannot use the node's IAM role.** Instance metadata requires IMDSv2 with a hop limit of 1, which only the host network can satisfy. The role has only AWS's `AmazonSSMManagedInstanceCore` policy and carries the account's mandatory permissions boundary.
 - **TLS at the edge.** The ALB terminates TLS with an ACM certificate. The ALB-to-node hop is plain HTTP inside the VPC, on ports nothing else can reach. Inside the cluster, UDS Core routes pods' requests for the gateway hostnames (Grafana signing in through Keycloak, for one) to each gateway's HTTPS port, which serves a certificate from a CA generated on the node and trusted through UDS Core's cluster trust bundle.
 - **UDS Core enforcement** applies to NAVIFI like any other workload: Pepr admission policies (non-root, no privilege escalation, dropped capabilities), Istio ambient mTLS, network policies generated from each app's `Package`, Falco runtime detection, and central logs and metrics.
-- **Storage is fenced too.** The storage prerequisites deploy before UDS Core and are exempt from its admission policies, so MinIO carries its own network policy that admits only Loki, Velero and MinIO's own bucket setup job.
+- **Storage is fenced too.** The storage prerequisites deploy before UDS Core and are exempt from its admission policies, so MinIO carries its own network policy that admits only Loki, Velero and MinIO's own bucket setup job. In the other direction, Loki and Velero may reach only MinIO and the Kubernetes API, where UDS Core's default lets their storage traffic go anywhere.
 - **Supply chain.** Zarf init and UDS Core are verified with Sigstore keyless signatures against their release workflows when the bundle is built. The RKE2 installer is fetched from its release tag and checked against a pinned SHA-256, and it installs Rancher's GPG-signed RPMs. The UDS CLI download is checked against a pinned SHA-256. Every NAVIFI package carries a Syft SBOM.
 - **Secrets stay on the node.** The MinIO credentials and the gateway CA and key are generated on first install under `~/.config/navifi-lab` (readable only by ec2-user). They never enter git or Terraform state.
 - **Docker is build-only.** It runs with no default bridge and no iptables rules, so it cannot interfere with Kubernetes networking.
@@ -145,13 +161,22 @@ Defense Unicorns asks for 12+ vCPUs and 32+ GiB for production UDS Core. Here it
 
 MinIO, standing in for cloud object storage, runs as a single replica requesting 512Mi, where the chart defaults to 16 replicas at 16Gi each.
 
-`install-core.sh` ends by printing the node's allocated requests against what it can schedule. If pods stay Pending for CPU or memory, set `instance_type = "m7i.4xlarge"`.
+`install-core.sh` ends by printing the node's allocated requests against what it can schedule; with UDS Core running that is about 60% of the CPU and a third of the memory. If pods stay Pending for CPU or memory, set `instance_type = "m7i.4xlarge"`.
+
+## Pitfalls already handled
+
+Each of these broke an early install of this stack. The fixes are in the repo, so a fresh node does not hit them.
+
+- **SELinux and shared volumes.** Kubernetes relabels a local volume with the SELinux categories of each pod that mounts it, so a second pod on the same volume locks the first one out. The Zarf registry autoscales to a second replica while UDS Core's images are pushed, and the pushes then fail with HTTP 500. `cluster/uds-config.yaml` turns the registry's autoscaler off.
+- **RKE2 1.36 ships Gateway API CRDs.** Disabling `rke2-traefik` still leaves the `rke2-traefik-crd` chart, whose Gateway API CRDs block UDS Core's own. `cluster/rke2-config.yaml` sets `ingress-controller: none`, which skips both. Helm keeps those CRDs when the chart is removed, so a node that already has them needs them deleted before UDS Core installs.
+- **Narrow storage egress also cuts off the Kubernetes API.** UDS Core's default lets Loki and Velero send storage traffic anywhere, and that rule is also their only route to the Kubernetes API. With storage limited to MinIO, the bundle adds explicit KubeAPI rules. Without them, Loki's rules sidecar crash-loops and the install times out.
+- **MinIO's public images are gone.** quay.io and Docker Hub no longer serve them anonymously, so the prerequisites use the Chainguard MinIO build that Defense Unicorns' uds-k3d runs (`cluster/prereqs/values/minio.yaml`).
 
 ## Cost
 
 The node is on-demand `m7i.2xlarge` (US$0.4032 an hour for the compute in us-east-1) plus the hourly RHEL subscription fee, a 150 GB gp3 volume (about US$12 a month) and a public IPv4 address (about US$3.65 a month). The ALB is shared with the lab, and the certificate is free. To save money between demos, stop the instance. RKE2 and UDS Core come back on their own when it starts again.
 
-## Checks
+## Static checks
 
 ```bash
 terraform -chdir=infra/terraform fmt -check -recursive
