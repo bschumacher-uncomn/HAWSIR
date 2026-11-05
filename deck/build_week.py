@@ -196,6 +196,7 @@ def slide_title():
     s.label(0.6, 3.15, 5.5, 1.0, [[(
         'We built it this week: the app, the engine under it, and a real cluster to run it on. '
         'This deck is what we did, what we hit, and where it stands.', 13, SOFT, False)]], anchor=MSO_ANCHOR.TOP)
+    s.label(0.6, 4.05, 5.7, 0.4, [[('TEAM  ', 12, CYAN, True), ('MISSION VECTOR', 18, INK, True)]])
     s.shot('thread_0600', 6.6, 0.75, 6.15, color=CYAN_DIM)
 
     days = [
@@ -216,7 +217,7 @@ def slide_title():
         if i < 2:
             s.line(x + DW + 0.04, DY + DH / 2, x + DW + DG - 0.04, DY + DH / 2, MUTE, width=1.5)
     s.notes(
-        "HAWSIR is a mission consequence engine for the watch floor: when status reports land, it shows which one "
+        "We're team Mission Vector. HAWSIR is a mission consequence engine for the watch floor: when status reports land, it shows which one "
         "actually controls the mission, what it costs, and which bounded options recover it.\n\n"
         "We built it this week. Tuesday was the engine and the watch floor. Wednesday was the executable mission "
         "thread; Connor also wrote a standalone mission engine, and we built the video. Wednesday night into "
@@ -232,10 +233,10 @@ def slide_team():
     people = [
         ('bryce-schumacher', (70, 30, 520), CYAN, 'Bryce Schumacher', 'bschumacher@uncomn.com',
          'Built the HAWSIR app: the watch floor, the mission thread, the decision log and the evidence screens. '
-         'Stood up the lab cluster on AWS.'),
+         'Stood up the hardened, STIG-style cluster on AWS.'),
         ('connor-barnsley', (60, 0, 520), VIOLET, 'Connor Barnsley', 'cbarnsley@uncomn.com',
-         'Built the standalone mission engine: the dependency graph, Monte Carlo, the decision ledger, and naval '
-         'and airlift mission packs, with 48 tests.'),
+         'Built the mission engine and the API the app runs on: the dependency graph, Monte Carlo, the decision '
+         'ledger, and naval and airlift mission packs.'),
     ]
     CW, CG, CY, CH, D = (12.15 - 0.35) / 2, 0.35, 1.95, 4.6, 2.1
     for i, (photo, crop, color, name, email, body) in enumerate(people):
@@ -246,12 +247,13 @@ def slide_team():
         s.label(x + 0.45, CY + D + 1.15, CW - 0.9, 0.8, [[(body, 12.5, SOFT, False)]],
                 align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.TOP)
         s.label(x + 0.4, CY + CH - 0.5, CW - 0.8, 0.3, [[(email, 13, color, True)]], align=PP_ALIGN.CENTER)
-    s.label(0.6, 6.85, 12.15, 0.3, [[('HAWSIR  ·  FleetHacker Norfolk 2026', 11, MUTE, False)]], align=PP_ALIGN.CENTER)
+    s.label(0.6, 6.85, 12.15, 0.3, [[('Team Mission Vector  ·  HAWSIR  ·  FleetHacker Norfolk 2026', 11, MUTE, False)]],
+            align=PP_ALIGN.CENTER)
     s.notes(
-        "We're Bryce and Connor, and the two of us built this in a two-day sprint.\n\n"
+        "We're Bryce and Connor, team Mission Vector, and the two of us built this in a two-day sprint.\n\n"
         "Bryce built the HAWSIR app, the watch floor, mission thread, decision log and evidence screens, and stood "
-        "up the lab cluster it runs on. Connor built the standalone mission engine: the dependency graph, Monte "
-        "Carlo, the decision ledger and the naval and airlift mission packs.\n\n"
+        "up the hardened, STIG-style cluster it runs on. Connor built the mission engine and the API the app runs "
+        "on: the dependency graph, Monte Carlo, the decision ledger and the naval and airlift mission packs.\n\n"
         "If you have questions, or a mission you want to see run through it, our emails are on the slide.")
 
 
@@ -528,7 +530,7 @@ def slide_question():
 # ================================================================ the mission thread
 def slide_thread():
     s = Slide()
-    s.header('WHAT WE BUILT', 'We made the mission itself executable', [
+    s.header('WHAT WE BUILT', 'We made the mission graph executable', [
         ('Operation Open Passage: mine countermeasures for USS CAPE CHARLES (LCS-42), synthetic data', 14, SOFT, False)])
     s.shot('thread_1000', 0.6, 1.85, 7.7, color=CYAN_DIM)
     beats(s, 8.65, 1.9, 4.1, [
@@ -598,7 +600,7 @@ def slide_break():
             s.text(chip, [[(case, 10.5, INK, False)]])
         y += 0.42 * ((len(cases) + 1) // 2) + 0.3
 
-    facts = [('12', 'failure cases, run live'), ('39', 'app tests'), ('48', "tests on Connor's engine")]
+    facts = [('12', 'failure cases, run live'), ('39', 'app tests')]
     for i, (big, small) in enumerate(facts):
         fx = 0.6 + i * 2.2
         s.label(fx, 6.35, 0.65, 0.55, [[(big, 26, CYAN, True)]], anchor=MSO_ANCHOR.MIDDLE)
@@ -619,7 +621,7 @@ def slide_break():
         "contradictory and malformed data; losing the link in EMCON; the language model being unavailable; and hard "
         "problems like a nonlinear consequence, a hidden cliff, and a case where no single fix works. The app runs "
         "every one live against the engine.\n\n"
-        "Behind that are 39 app tests, and Connor's new standalone engine has 48 of its own.\n\n"
+        "Behind that are 39 app tests.\n\n"
         "We also wrote down what it does not do yet: durations are planner estimates, delays are treated as "
         "independent, and it is a single-ship picture. Those limits sit on the evidence screen next to the results.")
 
@@ -998,7 +1000,7 @@ def slide_ship_arch():
 # ================================================================ where we are
 def slide_where():
     s = Slide()
-    s.header('WHERE WE ARE', "What's real, what isn't yet, and what's next", [
+    s.header('WHERE WE ARE', "What's real, and what isn't yet", [
         ('Three days in. Here is the straight version.', 14, SOFT, False)])
     cols = [
         ('Real today', GREEN, [
@@ -1013,32 +1015,77 @@ def slide_where():
             "Correlated delays (one cause, many slips) aren't modeled",
             'One ship at a time; squadron roll-up is a prototype',
         ]),
-        ('Next', CYAN, [
-            "Wire Connor's new mission engine into the app",
-            '30 days: read-only exports from one DDG; three watch teams try it against today\'s process',
-            '60 days: workflow authoring, and UDS on an RKE2 edge node (we did a version of this one this week)',
-            '90 days: three hulls plus a squadron roll-up',
-        ]),
     ]
-    CW, CG = (12.15 - 2 * 0.25) / 3, 0.25
+    CW, CG = (12.15 - 0.35) / 2, 0.35
     for i, (title, color, items) in enumerate(cols):
         x = 0.6 + i * (CW + CG)
-        s.card(x, 1.85, CW, 4.3, color)
-        s.label(x + 0.25, 2.07, CW - 0.5, 0.32, [[(title, 17, color, True)]])
-        s.label(x + 0.25, 2.6, CW - 0.5, 3.4,
-                [[('›  ', 13.5, color, True), (item, 13.5, INK, False)] for item in items],
-                anchor=MSO_ANCHOR.TOP, spacing=14)
-    s.label(0.6, 6.5, 12.15, 0.4, [[('Synthetic data only.  A human decides.', 16, SOFT, True)]], align=PP_ALIGN.CENTER)
+        s.card(x, 1.85, CW, 3.9, color)
+        s.label(x + 0.35, 2.1, CW - 0.7, 0.36, [[(title, 19, color, True)]])
+        s.label(x + 0.35, 2.75, CW - 0.7, 2.9,
+                [[('›  ', 15, color, True), (item, 15, INK, False)] for item in items],
+                anchor=MSO_ANCHOR.TOP, spacing=16)
+    s.label(0.6, 6.15, 12.15, 0.4, [[('Synthetic data only.  A human decides.', 16, SOFT, True)]], align=PP_ALIGN.CENTER)
+    s.label(0.6, 6.6, 12.15, 0.3, [[('The next slide is how we close the gaps on the right.', 12, MUTE, False)]],
+            align=PP_ALIGN.CENTER)
     s.notes(
         "Straight version, three days in.\n\n"
         "Real today: it runs on the ship's stack and is live on AWS; four mission threads run on one engine; twelve "
         "failure cases run live; every decision goes on a hash-chained log; and any commit goes live in one command.\n\n"
         "Not real yet: all data is synthetic, durations are planner estimates, correlated delays are not modeled, "
-        "and it is one ship at a time; the squadron roll-up is a prototype.\n\n"
-        "Next: wire Connor's new mission engine into the app. Then the plan in the app: in 30 days, read-only "
-        "exports from one DDG and three watch teams trying it against today's process; in 60, workflow authoring "
-        "and UDS on an RKE2 edge node, which we did a version of this week; in 90, three hulls and a squadron "
-        "roll-up.")
+        "and it is one ship at a time; the squadron roll-up is a prototype. The next slide is how we close those.")
+
+
+# ================================================================ 30 / 60 / 90
+def slide_plan():
+    s = Slide()
+    s.header('THE NEXT 90 DAYS', 'From one ship to a squadron', [
+        ('Each step closes a gap from the last slide and ends with something a watch team can check.', 14, SOFT, False)])
+    phases = [
+        ('30', 'Real data, one ship', CYAN, [
+            'Sanitized, read-only exports from one DDG: maintenance, supply, personnel, watchbill',
+            "Three watch teams run the before-and-after comparison against today's process",
+            "Durations calibrated from that ship's own history",
+        ], "Measured times replace our tabletop estimate", None),
+        ('60', 'Underway, offline', VIOLET, [
+            'UDS on an RKE2 edge node aboard, syncing with shore when the link is up',
+            "Workflow authoring: the ship's planners lay out their own mission threads",
+            'One underway period in shadow mode, beside the current process',
+        ], 'The ship runs an underway week without shore help', 'Lab version stood up this week'),
+        ('90', 'A squadron', GREEN, [
+            'Three hulls on one picture, plus the squadron roll-up',
+            'Correlated delays modeled: one cause, many slips',
+            'Accreditation package from the image SBOMs and the OSCAL control file',
+        ], 'Squadron staff plan a real event with it', None),
+    ]
+    CW, CG, CY, CH = (12.15 - 2 * 0.25) / 3, 0.25, 1.85, 5.1
+    for i, (days, name, color, items, done, tag) in enumerate(phases):
+        x = 0.6 + i * (CW + CG)
+        s.card(x, CY, CW, CH, color)
+        s.label(x + 0.3, CY + 0.25, 1.1, 0.75, [[(days, 44, color, True)]], anchor=MSO_ANCHOR.MIDDLE)
+        s.label(x + 1.35, CY + 0.3, CW - 1.6, 0.7, [[('DAYS', 10.5, MUTE, True)], [(name, 16, INK, True)]],
+                anchor=MSO_ANCHOR.MIDDLE, spacing=1)
+        s.label(x + 0.3, CY + 1.25, CW - 0.6, 2.4,
+                [[('›  ', 12.5, color, True), (item, 12.5, INK, False)] for item in items],
+                anchor=MSO_ANCHOR.TOP, spacing=10)
+        if tag:
+            chip = s.box(x + 0.3, CY + 3.45, CW - 0.6, 0.36, fill=CHIP, line=color, radius=0.3)
+            s.text(chip, [[(tag, 10, color, True)]])
+        s.box(x + 0.3, CY + CH - 1.05, CW - 0.6, 0.8, fill=NODE, line=EDGE, radius=0.1)
+        s.label(x + 0.45, CY + CH - 0.95, CW - 0.9, 0.7, [[('DONE WHEN', 9.5, color, True)], [(done, 11.5, INK, False)]],
+                anchor=MSO_ANCHOR.TOP, spacing=2)
+    s.notes(
+        "The plan for the next 90 days. Each step closes one of the gaps on the last slide and ends with "
+        "something a watch team can check.\n\n"
+        "In 30 days: real data from one ship. Sanitized, read-only exports from one DDG, three watch teams running "
+        "the before-and-after comparison against today's process, and durations calibrated from that ship's own "
+        "history. Done when measured times replace our tabletop estimate.\n\n"
+        "In 60 days: underway and offline. UDS on an RKE2 edge node on the ship, syncing with shore when the "
+        "link is up; we stood up a lab version of that node this week. The ship's own planners author their "
+        "mission threads, and we run one underway period in shadow mode beside the current process. Done when the "
+        "ship runs an underway week without shore help.\n\n"
+        "In 90 days: a squadron. Three hulls on one picture with the squadron roll-up, correlated delays modeled, "
+        "and an accreditation package built from the image SBOMs and the OSCAL control file. Done when squadron "
+        "staff plan a real event with it.")
 
 
 # ================================================================ nothing typed twice
@@ -1173,6 +1220,85 @@ def slide_watch():
         "What we have not done is put it in front of a real watch team. That is the first thing in the 30-day plan.")
 
 
+# ================================================================ the execution engine
+def slide_engine():
+    s = Slide()
+    s.header('THE EXECUTION ENGINE', 'Every report re-runs the mission graph', [
+        ('Reports in, a decision out. Everything in between is deterministic.', 14, SOFT, False)])
+    steps = [
+        ('REPORTS IN', AMBER, 'Facts', 'Time-stamped and hash-chained. Malformed values quarantined; stale and contradictory ones flagged.'),
+        ('COMPILE', BLUE, 'Domain pack', 'Turns the facts into a mission graph: naval, airlift, or a hand-authored mission.'),
+        ('EXECUTE', CYAN, 'compute()', 'Walks every timeline, crew, delivery slot and stock level to a ready time and a margin.'),
+        ('EXPLAIN', VIOLET, 'Analysis', 'The controlling chain, slack vs margin, cliffs, bounded options, seeded Monte Carlo.'),
+        ('DECIDE', GREEN, 'Decision chain', 'A person approves, rejects or stops, recorded against the exact facts and result.'),
+    ]
+    PG, PY, PH = 0.3, 1.9, 1.6
+    PW = (12.15 - 4 * PG) / 5
+    for i, (tag, color, name, body) in enumerate(steps):
+        x = 0.6 + i * (PW + PG)
+        hot = tag == 'EXECUTE'
+        s.box(x, PY, PW, PH, fill=CYAN if hot else HULL, line=color, line_w=1.5, radius=0.06)
+        s.label(x + 0.16, PY + 0.14, PW - 0.32, 0.22, [[(tag, 9.5, ABYSS if hot else color, True)]])
+        s.label(x + 0.16, PY + 0.38, PW - 0.32, 0.32, [[(name, 14, ABYSS if hot else INK, True)]])
+        s.label(x + 0.16, PY + 0.76, PW - 0.32, 0.8, [[(body, 10, ABYSS if hot else SOFT, False)]], anchor=MSO_ANCHOR.TOP)
+        if i < len(steps) - 1:
+            s.line(x + PW + 0.03, PY + PH / 2, x + PW + PG - 0.03, PY + PH / 2, MUTE, width=1.5)
+
+    CW, CG, CY, CH = (12.15 - 2 * 0.25) / 3, 0.25, 3.8, 3.15
+    xs = [0.6 + i * (CW + CG) for i in range(3)]
+
+    x = xs[0]
+    s.card(x, CY, CW, CH, CYAN)
+    s.label(x + 0.25, CY + 0.2, CW - 0.5, 0.32, [[('What a mission graph is made of', 13.5, CYAN, True)]])
+    parts = [('Timelines', 'Events, windows, people, crew-constrained tasks, delivery slots, all / any / k-of-n gates'),
+             ('Quantities', 'Stocks such as fuel and missiles, with burns and transfers'),
+             ('Routines', 'Versioned, contract-checked math such as transit time or fuel burn')]
+    for j, (term, desc) in enumerate(parts):
+        ry = CY + 0.65 + j * 0.8
+        s.label(x + 0.25, ry, CW - 0.5, 0.25, [[(term, 12, INK, True)]])
+        s.label(x + 0.25, ry + 0.27, CW - 0.5, 0.5, [[(desc, 10.5, SOFT, False)]], anchor=MSO_ANCHOR.TOP)
+
+    x = xs[1]
+    s.card(x, CY, CW, CH, AMBER)
+    s.label(x + 0.25, CY + 0.2, CW - 0.5, 0.32, [[('One number per capability: margin', 13.5, AMBER, True)]])
+    f = s.box(x + 0.25, CY + 0.65, CW - 0.5, 0.5, fill=NODE, line=EDGE, radius=0.12)
+    s.text(f, [[('margin = min(lead, tail, stock-hours)', 12.5, INK, True)]])
+    terms = [('lead', 'how late it could come up'), ('tail', 'how early it could be lost'),
+             ('stock-hours', 'how close a stock comes to its floor')]
+    for j, (term, desc) in enumerate(terms):
+        ry = CY + 1.35 + j * 0.42
+        s.label(x + 0.25, ry, 1.1, 0.36, [[(term, 11.5, AMBER, True)]], anchor=MSO_ANCHOR.TOP)
+        s.label(x + 1.35, ry, CW - 1.6, 0.4, [[(desc, 10.5, SOFT, False)]], anchor=MSO_ANCHOR.TOP)
+    s.label(x + 0.25, CY + 2.68, CW - 0.5, 0.3, [[('Status  ', 11.5, INK, True), ('Y', 12, GREEN, True), ('  ·  ', 11, MUTE, False),
+                                                 ('Q', 12, AMBER, True), ('  ·  ', 11, MUTE, False), ('N', 12, RED, True),
+                                                 ('  ·  ', 11, MUTE, False), ('UNK', 12, MUTE, True)]])
+
+    x = xs[2]
+    s.card(x, CY, CW, CH, GREEN)
+    s.label(x + 0.25, CY + 0.2, CW - 0.5, 0.32, [[('Why a watch can trust it', 13.5, GREEN, True)]])
+    s.label(x + 0.25, CY + 0.65, CW - 0.5, 2.4, [[('›  ', 11.5, GREEN, True), (b, 11.5, INK, False)] for b in [
+        'Same inputs, same answer, every time',
+        'Reads the picture as of any time, using only the facts known then',
+        'Runs the same in a test, ashore, or on a disconnected ship',
+        'Seeded Monte Carlo at about 1,200 futures a second on the lab node',
+    ]], anchor=MSO_ANCHOR.TOP, spacing=8)
+    s.notes(
+        "This is the execution engine under every screen. Reports come in, a decision comes out, and everything in "
+        "between is deterministic.\n\n"
+        "Each report lands as a time-stamped, hash-chained fact. Malformed values are quarantined, and stale or "
+        "contradictory ones are flagged. A domain pack compiles the facts into a mission graph: the naval pack, the "
+        "airlift pack, or a hand-authored mission like the Grace Hopper readiness thread. The engine then walks "
+        "every timeline, crew, delivery slot and stock level to a ready time and a margin for each capability. On "
+        "top of that sit the controlling chain, slack versus margin, cliffs, the bounded options and the Monte "
+        "Carlo. Then a person decides, and the decision is recorded against the exact facts and result it saw.\n\n"
+        "Margin is the minimum of lead, how late a capability could come up; tail, how early it could be lost; and "
+        "stock-hours, how close a stock like fuel or missiles comes to its floor. Status is Y, Q, N, or UNK when "
+        "information is missing.\n\n"
+        "Why a watch can trust it: same inputs, same answer; it can show the picture as of any time using only what "
+        "was known then; it has no I/O, so it runs the same in a test, ashore, or on a disconnected ship; and the "
+        "seeded Monte Carlo runs about 1,200 futures a second on the lab node.")
+
+
 # ================================================================ slack is not margin
 def slide_slack():
     s = Slide()
@@ -1268,11 +1394,11 @@ def slide_domains():
         'Two ship classes, three hulls',
         'A fleet picture prototype: 38 hulls, 12 missions, 140+ packages timed by the engine',
     ]], anchor=MSO_ANCHOR.TOP, spacing=9)
-    s.card(RX, 5.15, RW, 1.95, AMBER)
+    s.card(RX, 5.15, RW, 1.95, GREEN)
     s.label(RX + 0.25, 5.35, RW - 0.5, 1.65, [
-        [('Not yet', 13, AMBER, True)],
-        [("The app still runs its own engine. Wiring Connor's in is the next job; his engine's 48 tests "
-          'run on their own today.', 12.5, INK, False)],
+        [('Running in the app', 13, GREEN, True)],
+        [('Every screen, what-if and Monte Carlo run is computed by this engine, inside the mission API '
+          'on the cluster.', 12.5, INK, False)],
     ], anchor=MSO_ANCHOR.TOP, spacing=5)
     s.notes(
         "Beyond the surface fleet. Connor's new engine keeps the core general, with timelines, stock levels, the "
@@ -1284,7 +1410,8 @@ def slide_domains():
         "flight. Crews are tracked by qualification, so who can cover a task is part of the math. A new domain is "
         "a new pack, not an engine rewrite, and the app's original radar repair case passes unchanged on it.\n\n"
         "In the app today there are four mission threads on one engine and a 38-hull fleet picture prototype. "
-        "The app still runs its own engine; wiring Connor's in is the next job. All scenario data is synthetic.")
+        "Every screen, what-if and Monte Carlo run in the app is computed by this engine, inside the mission API. "
+        "All scenario data is synthetic.")
 
 
 # ================================================================ appendix: the app, screen by screen
@@ -1614,10 +1741,10 @@ def main():
         # what it does for the watch
         slide_thread, slide_impact, slide_data, slide_watch, slide_decides,
         # how it works and how it holds up
-        slide_slack, slide_break, slide_missions, slide_domains,
+        slide_engine, slide_slack, slide_break, slide_missions, slide_domains,
         # getting it to the fleet
         slide_platform_built, slide_platform_arch, slide_ship_arch,
-        slide_where,
+        slide_where, slide_plan,
     ) + APPENDIX
     for build in slides:
         build()
