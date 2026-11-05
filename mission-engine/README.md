@@ -9,8 +9,8 @@ All data in this folder is **synthetic** or cited public planning factors. It is
 ```bash
 cd mission-engine
 pnpm install        # or npm install
-pnpm test           # 48 tests: engine, data plane, packs, scenario, failure cases
-pnpm demo           # Operation STEEL TIDE walkthrough + airlift + HAWSIR classic
+pnpm test           # 68 tests: engine, data plane, packs, both missions, fleet lab, failure cases
+pnpm demo           # Operation STEEL TIDE walkthrough + airlift + the classic radar repair
 pnpm typecheck
 ```
 
@@ -64,9 +64,9 @@ facts (append-only, bitemporal, cited)          domain packs (naval, airlift, �
 |---|---|
 | `src/core/` | Engine: intervals, ledger, graph types, compute, attribution, patches, analysis, options, risk, Monte Carlo, explanations, trends, hashing |
 | `src/data/` | Data plane: fact store (append-only, bitemporal, scoped, quality flags, hash chain, merge) and decision log |
-| `src/packs/` | Domain packs: `airlift/` (AMPLIFI's checklist logic) and `naval/` (strike group, CLF, maintenance, C2) |
+| `src/packs/` | Domain packs: `airlift/` (AMPLIFI's checklist logic), `naval/` (strike group, CLF, maintenance, C2) and `authored/` (a hand-written thread whose values are bound to facts) |
 | `src/session.ts` | Ties it together: compile → overlay assumptions → compute → advise |
-| `scenarios/` | Synthetic scenarios: Operation STEEL TIDE (naval), REACH 417 (airlift) |
+| `scenarios/` | Synthetic missions: ATLAS SHIELD (authored DDG 21-day thread), STEEL TIDE (naval strike group), REACH 417 (airlift); `fleet/` is the fleet lab (38 hulls, 12 missions); `display.ts` carries names, tracks and legs for the screens; `index.ts` is the mission registry mission-api serves |
 | `demo/run.ts` | CLI walkthrough |
 | `test/` | Vitest suite |
 | `docs/DESIGN.md` | Semantics and design decisions in detail |
@@ -81,14 +81,24 @@ facts (append-only, bitemporal, cited)          domain packs (naval, airlift, �
 | Margin units | Time first; quantity margin shown beside it and converted to hours of burn at the low point |
 | Monotonicity | Bisection only where every node on the path is monotone. Top-off and clipped stocks are flagged and scanned. Options are evaluated with the choice held fixed |
 | Routines | Declarative structure in the graph; routines only for leaf math. Return contract (value/pass, units, binding, detail), declared monotonicity, attached tests. Source is stored, hashed and shown |
-| Persistence | AMPLIFI's data-plane semantics (append-only, provenance, scope, as-of) in an in-process log with JSONL export/import and merge. A Postgres/Core API adapter can implement the same interface later |
+| Persistence | AMPLIFI's data-plane semantics (append-only, provenance, scope, as-of) in an in-process log with JSONL export/import and merge. `mission-api` writes it through to Postgres and replays it on start |
 | Scope | Groups first. A single ship is a group of one |
 | Data | Synthetic, built from cited factors; scenario values are marked synthetic |
-| UI | Deferred; the engine API is what a UI consumes |
+| UI | `mission-api` (the only data boundary) serves the HAWSIR web app at the repo root; see `../README.md` |
 
-## Relationship to HAWSIR's current NAVIFI app
+## Relationship to the first prototype
 
-This is a new engine, not a fork. It keeps NAVIFI's best ideas: typed dependency nodes, controlling-constraint walk, slack vs margin by bisection, cliffs, quality flags, levers with authority and deadline, seeded Monte Carlo, hash-chained decisions, edge-first deployment. It generalizes them where the research needed more:
+This engine replaced the prototype's in-browser engine. It keeps the prototype's ideas:
+
+- typed dependency nodes;
+- the controlling-constraint walk;
+- slack vs. margin by bisection;
+- cliffs and quality flags;
+- levers with an authority and a deadline;
+- seeded Monte Carlo;
+- hash-chained decisions.
+
+It generalizes them where the research needed more:
 
 - availability is a set of intervals, not one ready time, so systems can go down and come back, and EMCON and hub closures are first-class;
 - stocks over time (fuel, VLS inventory) feed the same graph and margins;
@@ -96,12 +106,16 @@ This is a new engine, not a fork. It keeps NAVIFI's best ideas: typed dependency
 - facts are governed and replayable as of any time (AMPLIFI's model);
 - domain knowledge lives in packs with cited factor tables, not in scenario files.
 
-NAVIFI's "classic" regression (part 1200, team 1400, 3 h repair, need 1800 → 1 h margin, team controls) passes unchanged on the new engine (`test/compute.test.ts`, `pnpm demo:classic`). Its screens could be repointed at `MissionSession.advise()` later.
+The prototype's results are pinned on the new engine:
+
+- **Classic regression** (part 1200, team 1400, 3 h repair, need 1800 → 1 h margin, team controls): `test/compute.test.ts`.
+- **DDG 21-day story**, now ATLAS SHIELD (AMD Q, ready D-5 2200, 4d 10h, FC1 Martinez controls, expedite plus fly-away recovers a week): `test/atlas-shield.test.ts`.
+- **Fleet lab** roll-ups and disruption flips: `test/fleet.test.ts`.
 
 ## Known limitations
 
 - The MET → systems map, the extremis fuel floor, the SM reserve, UNREP time alongside, COD cruise speed and the C-17 numbers are **synthetic**. CASREP category meanings, UMMIPS cells and risk-matrix cells must be **verified** against NWP 1-03.1, NAVSUP P-485 and OPNAVINST 3500.39 (see `docs/DATA_SOURCES.md`).
 - Stock-hours margin uses the burn rate just before the low point. It is a first-order measure, not a re-optimization of the replenishment schedule.
-- Merge keeps everything and surfaces contradictions. There is no automatic conflict policy beyond "worse value wins".
+- Merge keeps everything and surfaces contradictions. There is no automatic conflict policy beyond "worse value wins". A fact merged late carries the receiving node's `receivedAt`, so reading as of an earlier time shows what that node knew then; the content id is unchanged, so the same report never duplicates.
 - Fuel is modeled in % of capacity (GAO factors are % of load). Barrel-level CLF capacity planning is the next step (Brown & Carlyle).
 - The engine evaluates option singles and pairs; larger combinations would need a search budget.

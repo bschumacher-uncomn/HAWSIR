@@ -1,0 +1,55 @@
+{{- if and .Values.app.enabled .Values.uds.enabled }}
+apiVersion: uds.dev/v1alpha1
+kind: Package
+metadata:
+  name: {{ .Release.Name }}
+  labels: {{- include "hawsir.labels" . | nindent 4 }}
+spec:
+  network:
+    expose:
+      - service: {{ .Release.Name }}-web
+        selector: {{- include "hawsir.selector" (dict "root" . "component" "web") | nindent 10 }}
+        gateway: {{ .Values.uds.gateway }}
+        host: {{ .Values.host }}
+        port: 8080
+    allow:
+      - direction: Ingress
+        remoteGenerated: IntraNamespace
+      - direction: Egress
+        remoteGenerated: IntraNamespace
+      {{- if .Values.node.peerUrl }}
+      # Ship → shore sync over the data link (the ship always dials out).
+      - direction: Egress
+        selector: {{- include "hawsir.selector" (dict "root" . "component" "api") | nindent 10 }}
+        remoteGenerated: Anywhere
+        port: 443
+      {{- end }}
+      {{- if eq .Values.node.kind "shore" }}
+      # Shore: accept sync from ship nodes.
+      - direction: Ingress
+        selector: {{- include "hawsir.selector" (dict "root" . "component" "api") | nindent 10 }}
+        remoteGenerated: Anywhere
+        port: 8820
+      {{- end }}
+      {{- if and .Values.llm.url (not .Values.llm.inCluster.enabled) }}
+      # Shore narrative endpoint, only usable when the link is up. Remove for EMCON builds.
+      - direction: Egress
+        selector: {{- include "hawsir.selector" (dict "root" . "component" "api") | nindent 10 }}
+        remoteGenerated: Anywhere
+        port: 443
+      {{- end }}
+  {{- if .Values.uds.sso }}
+  sso:
+    - name: HAWSIR Watch Floor
+      clientId: uds-{{ .Values.host }}
+      redirectUris:
+        - "https://{{ .Values.host }}.{{ .Values.domain }}/login"
+      enableAuthserviceSelector: {{- include "hawsir.selector" (dict "root" . "component" "web") | nindent 8 }}
+  {{- end }}
+  monitor:
+    - selector: {{- include "hawsir.selector" (dict "root" . "component" "api") | nindent 8 }}
+      portName: http
+      targetPort: 8820
+      path: /api/metrics
+      description: HAWSIR mission-api metrics
+{{- end }}

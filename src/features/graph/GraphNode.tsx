@@ -1,8 +1,8 @@
 import { BaseEdge, getBezierPath, Handle, Position, type Edge, type EdgeProps, type Node, type NodeProps } from '@xyflow/react';
 import { memo } from 'react';
 import { CalendarClock, Crosshair, Database, GitMerge, Layers, User, Wrench, type LucideIcon } from 'lucide-react';
-import type { NodeKind } from '@/engine/types';
-import { fmtDur, fmtT } from '@/engine/time';
+import type { NodeKind } from '@/api/types';
+import { fmtDur, fmtT } from '@/lib/time';
 import { useEngine } from '@/state/engine';
 import { cn, DOMAIN_COLOR, FLAG_META, STATUS_COLOR } from '@/lib/util';
 import type { GEdgeData, GNodeData } from './layout';
@@ -122,7 +122,7 @@ function NavNodeImpl({ data: d }: NodeProps<Node<GNodeData>>) {
   const src = n.sources?.[0];
   const sub =
     n.kind === 'task'
-      ? `${fmtDur(r.effective ?? n.duration ?? n.assumedDuration ?? 0)}${n.crew ? ` · ${n.crew.label} ${r.crew?.assigned.length ?? 0}/${n.crew.k}` : ''}`
+      ? `${fmtDur(n.duration ?? n.assumedDuration ?? 0)}${n.crew ? ` · ${n.crew.label} ${r.crew?.assigned.length ?? 0}/${n.crew.k}` : ''}`
       : n.kind === 'gate'
         ? (n.windows?.find((w) => w.id === r.usedWindow)?.label ?? 'no window reachable')
         : n.kind === 'person'

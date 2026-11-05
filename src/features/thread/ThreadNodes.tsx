@@ -19,7 +19,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { memo } from 'react';
-import type { QualityFlag, Readiness, ThreadStep } from '@/engine/types';
+import { BRAND } from '@/brand';
+import type { QualityFlag, Readiness } from '@/api/types';
+import type { ThreadStep } from './types';
 import { FLAG_META, STATUS_COLOR, STATUS_WORD, cn } from '@/lib/util';
 import type { LinkState, StepState, StepTime } from './model';
 import { PACKET_MS, usePackets } from './store';
@@ -238,7 +240,7 @@ export const StepCard = memo(function StepCard({ data: d }: NodeProps<StepNode>)
             due {d.cap.due} · ETA {d.cap.eta}
           </div>
           <div className={cn('font-display text-[9px] font-bold tracking-[0.16em]', reached ? 'animate-pulse text-unc' : 'text-mute')}>
-            {reached ? 'AWAITING AUTHORIZED DECISION' : 'NAVIFI PRESENTS · COMMANDER DECIDES'}
+            {reached ? 'AWAITING AUTHORIZED DECISION' : `${BRAND.name} PRESENTS · COMMANDER DECIDES`}
           </div>
         </div>
         <Handles />

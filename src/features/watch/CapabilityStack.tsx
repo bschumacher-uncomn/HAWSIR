@@ -1,15 +1,15 @@
 import { motion } from 'motion/react';
-import { fmtDur, fmtT } from '@/engine/time';
+import { fmtDur, fmtMargin, fmtT } from '@/lib/time';
 import { useEngine } from '@/state/engine';
 import { useStore } from '@/state/store';
 import { cn, STATUS_COLOR } from '@/lib/util';
-import { Panel, StatusBadge, Ticker } from '@/components/ui';
+import { MarginValue, Panel, StatusBadge } from '@/components/ui';
 
 export function CapabilityStack() {
   const { result, scenario, at, authResult, whatIfActive, plannedActive } = useEngine();
   const selected = useStore((s) => s.selectedCap);
   const select = useStore((s) => s.selectCap);
-  const counts = { Y: 0, Q: 0, N: 0 };
+  const counts = { Y: 0, Q: 0, N: 0, UNK: 0 };
   for (const c of result.capabilities) counts[c.status]++;
 
   return (
@@ -23,6 +23,7 @@ export function CapabilityStack() {
           <span className="text-ok">{counts.Y}Y</span>
           <span className="text-unc">{counts.Q}Q</span>
           <span className="text-crit">{counts.N}N</span>
+          {counts.UNK > 0 && <span className="text-ai">{counts.UNK}?</span>}
         </span>
       }
     >
@@ -30,9 +31,9 @@ export function CapabilityStack() {
         const sel = c.id === selected;
         const color = STATUS_COLOR[c.status];
         const auth = authResult.capabilities.find((x) => x.id === c.id);
-        const changedByPlan = (whatIfActive || plannedActive) && auth && Math.abs(auth.margin - c.margin) > 1e-6;
+        const changedByPlan = (whatIfActive || plannedActive) && auth && (auth.marginKind !== c.marginKind || Math.abs(auth.margin - c.margin) > 1e-6);
         const span = Math.max(1, c.requiredBy - at);
-        const readyPct = Math.min(100, Math.max(0, ((c.ready - at) / span) * 100));
+        const readyPct = Number.isFinite(c.ready) ? Math.min(100, Math.max(0, ((c.ready - at) / span) * 100)) : 100;
         return (
           <motion.button
             layout
@@ -64,7 +65,7 @@ export function CapabilityStack() {
               </div>
               <div className="text-right">
                 <div className="label !text-[8.5px]">Margin</div>
-                <Ticker value={c.margin} format={(v) => (v >= 0 ? fmtDur(v) : `−${fmtDur(-v)}`)} className="font-mono text-[15px] font-semibold" />
+                <MarginValue margin={c.margin} kind={c.marginKind} className="font-mono text-[15px] font-semibold" />
               </div>
             </div>
             <div className="mt-2">
@@ -79,7 +80,7 @@ export function CapabilityStack() {
             </div>
             {changedByPlan && auth && (
               <div className="mt-1 font-mono text-[9.5px] text-ai">
-                plan/what-if: {fmtDur(c.margin - auth.margin, { signed: true })} vs authoritative
+                plan/what-if: {c.marginKind === 'exact' && auth.marginKind === 'exact' ? fmtDur(c.margin - auth.margin, { signed: true }) : `${fmtMargin(auth.margin, auth.marginKind)} → ${fmtMargin(c.margin, c.marginKind)}`} vs authoritative
               </div>
             )}
           </motion.button>

@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { fmtDay, fmtT } from '@/engine/time';
+import { fmtDay, fmtT } from '@/lib/time';
 import { useEngine } from '@/state/engine';
 import { STATUS_COLOR } from '@/lib/util';
 import { Legend } from '@/components/ui';
@@ -8,7 +8,8 @@ export function MissionStrip() {
   const { scenario, at, result, nodes } = useEngine();
   const [h0, h1] = scenario.horizon;
   const x = (t: number) => `${((Math.min(h1, Math.max(h0, t)) - h0) / (h1 - h0)) * 100}%`;
-  const days = scenario.timeScale === 'days' ? Array.from({ length: Math.floor((h1 - h0) / 24) + 1 }, (_, i) => h0 + i * 24) : Array.from({ length: h1 - h0 + 1 }, (_, i) => h0 + i);
+  const step = scenario.timeScale === 'days' ? 24 : h1 - h0 > 96 ? 12 : h1 - h0 > 36 ? 6 : 1;
+  const days = Array.from({ length: Math.floor((h1 - h0) / step) + 1 }, (_, i) => h0 + i * step);
   const windows = Object.values(nodes)
     .flatMap((n) => (n.windows ?? []).filter((w) => w.enabled !== false).map((w) => ({ ...w, node: n.id })))
     .filter((w, i, a) => a.findIndex((y) => y.label === w.label) === i);

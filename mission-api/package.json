@@ -1,0 +1,27 @@
+{
+  "name": "@hawsir/mission-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The mission engine's only data boundary: Postgres-backed fact and decision logs, view models for the web app, live events, ship-to-shore sync, and the demo clock.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/server.mjs",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/server.mjs --external:pg --external:express --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.11.10",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.4",
+    "typescript": "~5.8.3",
+    "vitest": "^3.1.4"
+  }
+}

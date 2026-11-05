@@ -13,7 +13,7 @@ export interface McRequirementStats {
   pQ: number;
   pN: number;
   pUNK: number;
-  margin: { p5: number; p50: number; p95: number; mean: number };
+  margin: { p5: number; p10: number; p50: number; p90: number; p95: number; mean: number };
   /** How often each leaf constraint controlled the outcome. */
   controlling: Record<string, number>;
 }
@@ -70,7 +70,9 @@ export function runMonteCarlo(g: GraphSpec, ctx: ComputeContext, targets: string
       pUNK: status[t].UNK / n,
       margin: {
         p5: quantile(ms, 0.05),
+        p10: quantile(ms, 0.1),
         p50: quantile(ms, 0.5),
+        p90: quantile(ms, 0.9),
         p95: quantile(ms, 0.95),
         mean: finite.length ? finite.reduce((a, b) => a + b, 0) / finite.length : NaN,
       },

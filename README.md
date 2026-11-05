@@ -1,65 +1,78 @@
-# NAVIFI · Fleet Mission Consequence Engine
+# HAWSIR · Mission Consequence Engine
 
-**Know before it breaks the mission.** When a part slips, a sailor goes on leave, or a record arrives malformed, NAVIFI tells the watch team in milliseconds what that does to each mission capability, what actually controls the outcome, how sure the answer is, and which bounded options would recover it. A human decides. Every decision is hash-chained.
+**Know before it breaks the mission.** When a part slips, a sailor goes on leave, a radio fails or a record arrives malformed, HAWSIR tells the watch team what that does to each mission capability. It shows what actually controls the outcome, how sure the answer is, and which bounded options would recover it. A human decides, and every report and decision is hash-chained.
 
-FleetHacker Norfolk 2026 · synthetic data only · not an authoritative system.
+FleetHacker Norfolk 2026 · synthetic, unclassified data only · not an authoritative system. The product name lives in [`brand.json`](brand.json); the UI, the API and the CI read it from there.
+
+## Run it
 
 ```bash
-pnpm install && pnpm dev     # http://localhost:5310
+# containers: ship node + shore node, each with its own API, web app and database
+cd mission-deploy && docker compose up --build
+#   ship UI  http://localhost:8080      shore UI  http://localhost:8081
+
+# or locally (Node 22, a reachable Postgres 16)
+pnpm install && npm --prefix mission-api install
+pnpm dev                                   # mission-api :8820 + web :5310
 ```
 
-## What it does
+## How it fits together
 
-- **Executable mission threads**: the mission runs as a swimlane flow (tokens, handoffs, waits) timed by the engine, so a status board's five reports collapse to the one that controls the outcome.
-- **Five answers on one screen**: is the capability up now, will it be up when needed, what controls that, how much margin is left, and what are the bounded options.
-- **Controlling constraint, not just a status**: walks the dependency graph back to the one input, person, delivery window or task that sets the time.
-- **Upstream slack vs. mission margin**: a part with 2 h slack can slip 2 h with zero consequence; a team with 0 slack cannot slip 1 minute.
-- **Nonlinear consequences**: a 2-day parts slip that misses the sail date costs 9+ days because the next delivery window is Rota.
-- **Visible uncertainty**: missing, stale, contradictory and malformed data are flagged on the chain that matters; Monte Carlo shows the spread.
-- **Human in control**: approve, reject or modify with a note; STOP halts all advisory output; nothing writes to authoritative systems.
-- **DDIL-ready**: the engine runs on the ship with the link down; the audit chain stores and forwards.
-- **Deterministic first**: the LLM only rewrites calculated facts into plain language, and the answer is identical with it off.
+```
+ browser ──/api──▶ web (nginx, static) ──▶ mission-api ──▶ Postgres (this node's logs)
+                                              │  mission-engine runs here, in-process
+                                              └── sync: the ship dials the shore when its link is up
+```
+
+| Package | What it is |
+|---|---|
+| [`mission-engine/`](mission-engine/README.md) | The deterministic engine: availability timelines, stocks, controlling-constraint attribution, slack, cliffs, bounded options, seeded Monte Carlo. Domain packs (naval, authored threads, airlift). Both missions and the fleet lab live in `scenarios/`. No I/O. |
+| [`mission-api/`](mission-api/README.md) | The only door to the data. It keeps a bitemporal fact log and a decision log in Postgres, both hash-chained and re-verified on load. It also serves the view models the screens draw, live events (SSE), ship ⇄ shore sync and the demo clock. |
+| `src/` (this package) | The web app: React, deck.gl, three.js. It fetches pictures from mission-api and computes nothing itself; it only re-checks hash chains in the browser. |
+| [`mission-deploy/`](mission-deploy/README.md) | Docker Compose for the two-node stack. |
+| `deploy/`, `zarf.yaml`, `uds-bundle.yaml` | Helm chart (web, mission-api, Postgres, optional narrator) with a UDS Package CR; Zarf package and UDS bundle for air-gapped hulls. |
+
+## The two missions
+
+Pick one in the header. [docs/SCENARIOS.md](docs/SCENARIOS.md) walks through each report and what the engine does with it.
+
+- **ATLAS SHIELD · DDG readiness, 21 days to tasking.** One destroyer. A radar part slips past the sail date, so the next delivery is Rota. Two technicians leave, and the one who rejoins last controls air and missile defense: Q, ready D-5 2200, 4d 10h of margin. Expediting the part alone recovers nothing; expediting it and bringing in a fly-away tech team recovers a week.
+- **STEEL TIDE · carrier strike group TLAM strike.** Five ships. Kittredge's SATCOM fails six hours before H, and strike EMCON closes the only other launch-authority path. The ship's data link drops too, so the ship knows and the shore does not, until the link comes back.
 
 ## Screens
 
 | Screen | Shows |
 |---|---|
-| Mission Thread | Executable swimlane thread: tokens and data packets flow on engine timing, waits and the critical chain light up, status board vs. thread verdicts, bounded options. Hand-laid for MCM; auto-laid from the dependency graph for every other scenario |
-| Watch Floor | 3D ship status, five answers, capability stack, change stream, bounded options |
-| Consequence Graph | Live dependency graph, critical chain, slack per input, consequence curve, what-if slider |
-| Readiness Horizon | 21-day timeline, margin burn-down, act-by deadlines, data health |
-| Simulation | 2,000 seeded futures: S-curves, margin histogram, tornado, criticality |
-| Theater | Offline map: track, movement legs into Rota, delivery options, SPY coverage |
-| Decision Log | Hash-chain verify, tamper demo and edge-copy restore, decisions |
-| Evidence | Live failure-case matrix, judge challenge stopwatch, baseline vs assisted, 30/60/90 |
-| Edge Platform | RHEL 9 → RKE2 → UDS Core stack (live), AI-assisted CI/CD, DDIL, OSCAL, fleet rollout |
+| Watch Floor | 3D digital twin, capability stack, the five answers (what changed, what it affects, what controls readiness, margin and certainty, bounded options), change stream |
+| Mission Thread | The dependency graph as an executable swimlane thread. It shows waits, handoffs and the critical chain against the plan of record, a status board vs. thread verdict, and options. |
+| Consequence Graph | Live graph, critical chain, slack per input, consequence curve, what-if slider (sandbox only) |
+| Theater | Offline vector map. Every ship's track moves at once, with parts, people and aircraft legs into the delivery windows they have to hit. |
+| Fleet Lab | 38 synthetic hulls, 12 missions, ~150 packages, all computed by the engine on the node. Toggle fleet disruptions (AMC stand-down, Suez, typhoon, DLA backlog, NSIPS outage, SATCOM). **Random slip** slips one input and reports the delay to the capability. |
+| Decision Log | Decision and report chains from the node, re-verified in the browser, with a tamper demo that restores from the node's copy. Also shows peers' chains and the store-and-forward queue. |
+| Edge Platform | How it deploys: RHEL 9 → RKE2 → UDS Core, CI/CD with a human gate, DDIL behaviour, OSCAL |
 
-Keyboard: `1`–`9` switch screens (`1` is the Mission Thread at `/thread`), `Space` play/pause the change stream, `Shift+R` reset the session (clears approvals, what-ifs and the local log; the edge copy is kept), `T` attract mode.
+Keyboard: `1`–`7` switch screens, `Space` play/pause (pressing play at the end replays from the start), `Shift+R` reset the mission on this node, `T` attract mode. URL options: `?scenario=steel-tide`, `?noboot`, `?t=<hours>`.
 
-Labs: the fleet roll-up globe (38 hulls, 12 missions, 150 packages) is an experiment, kept at `/labs/fleet` behind the dashed **LABS** button at the bottom of the nav rail. It is not part of the demo path.
+## Principles the code enforces
 
-Attract mode (`T`, or open `http://localhost:5310/?noboot&tour` on a booth monitor) resets the session, opens on the MCM mission thread and replays its four reports until the analyst gap takes control, replays the destroyer change stream on the Watch Floor, then cycles every screen with a caption. Any key or click hands the watch back.
-
-## Three-minute demo
-
-Before each run, open `http://localhost:5310/?reset` (or press `Shift+R`) so earlier rehearsal approvals don't carry over.
-
-0. **Mission Thread (0:00).** Open `/thread?scenario=mcm&reset`. "Operation Open Passage: an LCS owes the commander a mine assessment of the Thimble Shoal approach by 1800. USV sonar and an MH-60S run in parallel, and a qualified analyst reviews both before anyone briefs." Press **RUN THREAD**: tokens move down the lanes, sonar data and imagery ride the handoffs, the critical chain glows. Then press `Space` and let the four reports land. USV maintenance eats 30 minutes. The helo delay is absorbed because the morning window is still open. The MVCS link fault makes the survey stale (Q). OS1 Vega is pulled to the CIC watch 1300–1645, and the token stops at analysis: **−1h 15m, controlled by OS1 Vega**. Press `Space` again to pause at 1000 (the reviewer option expires at 1400). "Five systems are reporting status. Only the executable thread shows which one controls the outcome." Approve **Reassign OS2 Kim**: back to Q with 1h 30m of margin. "Airborne-only recovers nothing: the sensors are not interchangeable."
-1. **Watch Floor (0:50).** Pick **DDG readiness · 21d** in the header. "D-14 before tasking. AMD is qualified, ready D-5 2200 with 4 days 10 hours of margin, and FC1 Martinez controls it." Replay the change stream: the CASREP lands and the ship lights up; the CFA slips 2d 3h and AMD margin drops 9d 18h. "That is the nonlinear part: it missed the sail date, so the Rota window controls."
-2. **Consequence Graph (1:20).** Click Martinez. "Zero slack: any slip is mission slip. The CFA now has slack to spare." Drag the what-if slider past the cliff.
-3. **Options (1:40).** Back on the Watch Floor: expedite alone recovers nothing; expedite plus the MARMC fly-away team recovers 7d 16h. Approve with a note. "Planning assumption, not an order."
-4. **Simulation (1:55).** "2,000 futures. About one in eight leaves no delivery window at all. Same seed, same answer."
-5. **Edge Platform (2:15).** Flip to EMCON. Everything still works. "One Zarf bundle, RHEL and RKE2, UDS Core, AI review with a human gate."
-6. **Decision Log (2:35).** Verify the chain, simulate a tamper, restore from the edge copy. "Who decided what, on which facts, provably."
-7. **Evidence (2:50).** "Twelve failure cases, run live. Judges: pick any input and time it."
-
-**If asked about scale:** threads are data. Pick any other mission in the thread picker and the same screen lays out its thread from the dependency graph, with no hand layout. (The fleet roll-up under Labs shows 38 hulls on one engine, recomputed in about 150 ms in the browser, if a judge asks about fleet level.) For a second deep workflow, pick **VLS reload · 72h** in the header. Different hull (DDG-173), port, and workflow, but the same engine and screens. A 12-hour C-17 slip costs 17 hours of margin because the ordnance misses Marathi berth slot A. Then the chief who supervises ordnance handling goes on light duty and takes control (AMD −2h). Chartering the airlift alone recovers nothing; adding a cross-decked supervisor from CG-176 recovers 15 hours.
+- **Deterministic first.** Every number comes from the engine; the same facts give the same answer. An optional local language model may reword the brief. mission-api rejects the rewording if it contains any time, duration or number that the engine didn't write (`mission-api/src/narrate.ts`).
+- **Human authority.** Options are planning assumptions with an approval authority and an act-by time. Approve, reject and withdraw all need the right notes. STOP halts advisory output, and resuming needs a reason. Lever categories that would issue orders or modify records are refused by the engine (`PROHIBITED_CATEGORIES`).
+- **Honest uncertainty.**
+  - Missing, stale, contradictory and malformed data are flagged on the chain that matters.
+  - A missing input makes a capability UNK, never green.
+  - Margins are never shown as infinity. "≥ 8d 0h" means nothing in the horizon limits the capability; "NEVER" means there is no path to it.
+- **Tamper-evident record.**
+  - Facts are content-addressed, so the same report has the same id on every node.
+  - Both logs are SHA-256 chains, re-verified from the stored rows on load, by the browser, and by peers.
+  - Reading "as of" a time shows only what this node knew then.
+- **DDIL.** Each node computes on what it holds. Sync merges by content id and never overwrites. The shore withholds other ships' personnel records (`SHARE_POLICY`).
 
 ## Engineering
 
-- 39 tests (`pnpm test`): 19 on the deterministic engine, 12 on the MCM thread and thread model, and 8 on the Labs fleet roll-up. The engine tests include the classic example: part 1200, team 1400, 3 h repair, required 1800 → ready 1700 with 1 h margin; part to 1330 has no consequence; team to 1600 misses by 1 h. The MCM tests pin the Open Passage story: the analyst gap alone gives the same −75 minutes as all four reports, and airborne-only does not substitute for sonar.
-- Mission threads (`src/features/thread`): a thread is lanes, steps and links that point at engine nodes. Step times, waits, the critical chain and packet timing all come from `compute`; nothing is animated on a guess. `autoThread` lays out any capability's upstream graph into lanes by domain.
-- Fleet roll-up (`src/labs/fleet`, Labs only): each synthetic hull's issues become an engine graph; a mission needs k of n hulls per capability (a hull counts only if it can also get underway); package slack comes from the same bisection `slackFor` as the watch floor.
-- Four workflows on the same engine, switchable from the header (or `?scenario=`): `mcm` LCS mine-countermeasures approach assessment in 12 hours, `ddg21` DDG readiness 21 days to tasking, `reload72` VLS reload at Souda Bay 72 hours to station, and `classic` the five-input radar repair.
-- [Architecture](docs/ARCHITECTURE.md) · [Deploy](docs/DEPLOY.md) · [Lab cluster on AWS](infra/README.md) (RHEL 9, RKE2, UDS Core, Terraform)
-- Container: UBI9 or Iron Bank base, non-root, health-checked. Helm chart with a UDS Package CR. Zarf package and UDS bundle for air-gapped hulls. OSCAL component definition with Lula validations.
+```bash
+npm --prefix mission-engine test     # 68 tests: engine, both missions, fleet lab
+npm --prefix mission-api test        # 13 tests against a real Postgres (PG_URL)
+pnpm typecheck && pnpm test          # web app
+```
+
+[Architecture](docs/ARCHITECTURE.md) · [Deploy](docs/DEPLOY.md) · [Scenarios](docs/SCENARIOS.md) · [Lab cluster on AWS](infra/README.md) (RHEL 9, RKE2, UDS Core, Terraform)

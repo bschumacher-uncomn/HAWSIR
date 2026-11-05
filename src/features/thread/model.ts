@@ -1,5 +1,5 @@
-import type { NodeMap } from '@/engine';
-import type { CapabilityResult, EngineResult, QualityFlag, Scenario, ThreadLink, ThreadSpec, ThreadStep } from '@/engine/types';
+import type { CapabilityResult, EngineResult, NodeMap, QualityFlag, Scenario } from '@/api/types';
+import type { ThreadLink, ThreadSpec, ThreadStep } from './types';
 
 export interface StepTime {
   id: string;

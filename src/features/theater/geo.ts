@@ -1,6 +1,6 @@
 import { feature } from 'topojson-client';
 import landTopo from 'world-atlas/land-50m.json';
-import type { TrackPoint } from '@/engine/types';
+import type { TrackPoint } from '@/api/types';
 
 export type LonLat = [number, number];
 export type LonLatZ = [number, number, number];

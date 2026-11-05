@@ -1,7 +1,7 @@
 import dagre from '@dagrejs/dagre';
-import type { Edge, Node } from '@xyflow/react';
-import { upstreamCone, type CapabilityResult, type EngineResult, type NodeMap, type SlackResult } from '@/engine';
-import type { NodeKind } from '@/engine/types';
+import { Position, type Edge, type Node, type NodeHandle } from '@xyflow/react';
+import type { CapabilityResult, EngineResult, NodeKind, NodeMap, SlackResult } from '@/api/types';
+import { upstreamCone } from '@/lib/graph';
 
 export type Role = 'chain' | 'cocrit' | 'cone' | 'off';
 
@@ -31,6 +31,16 @@ const SIZE: Record<NodeKind, [number, number]> = {
 };
 
 export const nodeSize = (k: NodeKind) => SIZE[k] ?? [200, 64];
+
+// Every rebuild hands React Flow fresh node objects, which drops its measured
+// handle bounds; fixed-size nodes may never be re-measured, leaving no edges.
+// Declaring the handles (4px, centred on the left/right edges, as GraphNode
+// renders them) makes edge routing independent of DOM measurement.
+const HANDLE = 4;
+const handlesFor = (w: number, h: number): NodeHandle[] => [
+  { type: 'target', position: Position.Left, x: -HANDLE / 2, y: h / 2 - HANDLE / 2, width: HANDLE, height: HANDLE },
+  { type: 'source', position: Position.Right, x: w - HANDLE / 2, y: h / 2 - HANDLE / 2, width: HANDLE, height: HANDLE },
+];
 
 export function buildGraph(
   nodes: NodeMap,
@@ -85,10 +95,11 @@ export function buildGraph(
     const [w, h] = nodeSize(n.kind);
     return {
       id: n.id,
-      type: 'navifi',
+      type: 'engine',
       position: { x: p.x - w / 2, y: p.y - h / 2 },
       width: w,
       height: h,
+      handles: handlesFor(w, h),
       draggable: false,
       data: {
         id: n.id,

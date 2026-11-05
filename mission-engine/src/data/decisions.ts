@@ -43,6 +43,17 @@ function entryHash(prev: string, d: DecisionInput & { seq: number }): string {
   return sha256(prev + canonical(d));
 }
 
+/** Recompute a decision chain from its entries alone (any holder of the rows can check them). */
+export function verifyDecisionChain(entries: readonly Decision[]): { ok: boolean; brokenAt?: number } {
+  let prev = GENESIS;
+  for (let i = 0; i < entries.length; i++) {
+    const { hash, prevHash, ...body } = entries[i];
+    if (prevHash !== prev || entryHash(prev, body) !== hash) return { ok: false, brokenAt: i };
+    prev = hash;
+  }
+  return { ok: true };
+}
+
 export class DecisionLog {
   private entries: Decision[] = [];
 
@@ -123,13 +134,7 @@ export class DecisionLog {
   }
 
   verify(): { ok: boolean; brokenAt?: number } {
-    let prev = GENESIS;
-    for (let i = 0; i < this.entries.length; i++) {
-      const { hash, prevHash, ...body } = this.entries[i];
-      if (prevHash !== prev || entryHash(prev, body) !== hash) return { ok: false, brokenAt: i };
-      prev = hash;
-    }
-    return { ok: true };
+    return verifyDecisionChain(this.entries);
   }
 
   /** Test hook for the tamper demo: mutate an entry in place without re-hashing. */
@@ -148,6 +153,13 @@ export class DecisionLog {
       }
     });
     return { restored };
+  }
+
+  /** Rebuild from stored entries (e.g. Postgres) without re-running validation; verify() checks integrity. */
+  static fromEntries(entries: Decision[]): DecisionLog {
+    const d = new DecisionLog();
+    d.entries = structuredClone(entries).sort((a, b) => a.seq - b.seq);
+    return d;
   }
 
   clone(): DecisionLog {

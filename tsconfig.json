@@ -17,7 +17,7 @@
     "noEmit": true,
     "types": ["vite/client", "node"],
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["src/*"], "@contract/*": ["mission-api/src/views/*"], "@engine/*": ["mission-engine/src/*"], "@scenarios/*": ["mission-engine/scenarios/*"] }
   },
-  "include": ["src", "server", "vite.config.ts"]
+  "include": ["src", "vite.config.ts"]
 }

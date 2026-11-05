@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { create } from 'zustand';
-import { scenarioById } from '@/data/scenarios';
+import { useEngine } from '@/state/engine';
 import { useStore } from '@/state/store';
 
 interface Step {
@@ -19,17 +19,14 @@ interface Step {
 const REPLAY_SPEED = 24;
 
 const STEPS: Step[] = [
-  { to: '/thread', scenario: 'mcm', title: 'Executable mission thread', caption: 'Operation Open Passage: an LCS clears the approach before a task group transit. USV sonar and MH-60S run in parallel, and both evidence sets converge on one qualified reviewer. Watch the reports land.', ms: 60_000, replay: true, speed: 12 },
-  { to: '/thread', title: 'Four reports, one controls', caption: 'USV +30 min eats margin. Helo +45 min is absorbed by slack. The comms fault flags data freshness. Only the reviewer gap puts the assessment 1h 15m late.', ms: 11_000 },
-  { to: '/', scenario: 'ddg21', title: 'Watch floor', caption: 'Same engine, a destroyer 21 days from deployment. Each feed change is recomputed on the edge node: the CASREP lands, the part slips, the technicians leave.', ms: 120_000, replay: true },
+  { to: '/', scenario: 'atlas-shield', title: 'Watch floor', caption: 'A destroyer 21 days from tasking. Each report lands on the node and the picture is recomputed: the CASREP, the part slip past sail, the technicians on leave.', ms: 120_000, replay: true },
   { to: '/', title: 'Five answers, one screen', caption: 'What changed, what it affects, what controls readiness, margin and certainty, and bounded options. AMD is Q, and FC1 Martinez controls it.', ms: 10_000 },
-  { to: '/graph', title: 'Consequence graph', caption: 'The critical chain from feeds to capability, with upstream slack and mission margin on every node.', ms: 9_000 },
-  { to: '/horizon', title: 'Readiness horizon', caption: 'Know before it breaks the mission: projected readiness against each phase, and every act-by deadline.', ms: 9_000 },
-  { to: '/sim', title: '2,000 futures', caption: 'Seeded Monte Carlo: the chance each capability is ready in time, and what controls it across futures.', ms: 10_000 },
-  { to: '/theater', title: 'Theater', caption: 'Every part, person and aircraft feeding readiness, and the delivery windows they have to hit.', ms: 9_000 },
-  { to: '/log', title: 'Tamper-evident log', caption: 'Every ingest and human decision on a SHA-256 hash chain, mirrored to the edge node. Planning assumptions, never orders.', ms: 8_000 },
-  { to: '/edge', title: 'Edge platform', caption: 'RHEL 9, RKE2 and UDS Core. One Zarf bundle per hull, AI-assisted CI/CD with a human gate, runs disconnected.', ms: 9_000 },
-  { to: '/evidence', title: 'Evidence', caption: 'Twelve failure cases run live, baseline vs assisted, limitations and the 30/60/90 plan.', ms: 9_000 },
+  { to: '/thread', title: 'Executable mission thread', caption: 'The same dependency graph as lanes and handoffs: who is waiting on whom, and what the plan of record looked like at watch start.', ms: 11_000 },
+  { to: '/graph', title: 'Consequence graph', caption: 'The critical chain from feeds to capability, with upstream slack and mission margin on every node. Drag a what-if; nothing is recorded.', ms: 9_000 },
+  { to: '/theater', scenario: 'steel-tide', title: 'Theater', caption: 'A carrier strike group: every ship moving at once, and every part and person feeding readiness, on an offline basemap.', ms: 12_000 },
+  { to: '/lab', title: 'Fleet lab', caption: 'Thirty-eight hulls, twelve missions. Close Suez, ground AMC, take NSIPS down: the consequence is computed, not looked up.', ms: 12_000 },
+  { to: '/log', title: 'Tamper-evident record', caption: 'Every report and every human decision on SHA-256 hash chains, re-verified in this browser. Planning assumptions, never orders.', ms: 8_000 },
+  { to: '/edge', title: 'Edge platform', caption: 'One mission-api per node, ship and shore, syncing when the link allows and computing when it does not.', ms: 9_000 },
 ];
 
 export const useTour = create<{ on: boolean; start: () => void; stop: () => void }>()((set) => ({
@@ -41,11 +38,11 @@ export const useTour = create<{ on: boolean; start: () => void; stop: () => void
 function enterStep(step: Step, first: boolean) {
   const st = useStore.getState();
   if (step.scenario && st.scenarioId !== step.scenario) st.setScenario(step.scenario);
-  if (first) st.resetSession();
+  void first;
   if (step.replay) {
-    const s = scenarioById(useStore.getState().scenarioId);
     st.focusEvent(null);
-    st.setWatchTime(s.watchStart - (s.timeScale === 'hours' ? 0.25 : 1));
+    // the player restarts from the watch start when asked to play at the end of the watch
+    st.setWatchTime(Number.NaN);
     st.setSpeed(step.speed ?? REPLAY_SPEED);
     st.setPlaying(true);
   }
@@ -56,7 +53,7 @@ export function Tour() {
   const navigate = useNavigate();
   const navRef = useRef(navigate);
   navRef.current = navigate;
-  const halted = useStore((s) => s.halted);
+  const halted = useEngine().halted.stopped;
   const [idx, setIdx] = useState(0);
   const step = STEPS[idx];
 

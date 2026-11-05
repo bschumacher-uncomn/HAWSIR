@@ -4,8 +4,10 @@
 .git
 .pnpm-store
 .shots
+.claude-transfer
 data/runtime
 dist
 dist-server
-node_modules
+**/node_modules
+**/dist
 infra

@@ -2,7 +2,7 @@ import '@xyflow/react/dist/style.css';
 import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node } from '@xyflow/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Crosshair, Network, Share2 } from 'lucide-react';
-import { fmtDur, fmtT } from '@/engine/time';
+import { fmtDur, fmtT } from '@/lib/time';
 import { useEngine } from '@/state/engine';
 import { useStore } from '@/state/store';
 import { Pill, StatusBadge, Ticker } from '@/components/ui';
@@ -12,7 +12,7 @@ import { Inspector } from '@/features/graph/Inspector';
 import { buildGraph, type GEdgeData, type GNodeData } from '@/features/graph/layout';
 import { useConeSlack } from '@/features/graph/hooks';
 
-const nodeTypes = { navifi: NavNode };
+const nodeTypes = { engine: NavNode };
 const edgeTypes = { flow: FlowEdge };
 
 function CapTabs({ mode, setMode }: { mode: 'cone' | 'full'; setMode: (m: 'cone' | 'full') => void }) {

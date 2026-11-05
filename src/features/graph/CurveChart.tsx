@@ -1,8 +1,8 @@
 import { scaleLinear } from 'd3-scale';
 import { area, curveLinear, line } from 'd3-shape';
 import { useId, useMemo } from 'react';
-import type { CurvePoint } from '@/engine';
-import { fmtDur } from '@/engine/time';
+import type { CurvePoint } from '@/api/types';
+import { fmtDur } from '@/lib/time';
 
 interface Props {
   points: CurvePoint[];

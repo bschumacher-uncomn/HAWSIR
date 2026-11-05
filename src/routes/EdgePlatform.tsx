@@ -19,28 +19,24 @@ import {
   WifiOff,
   type LucideIcon,
 } from 'lucide-react';
+import type { HealthView } from '@/api/types';
+import { BRAND } from '@/brand';
+import { actions } from '@/state/actions';
+import { useEngine } from '@/state/engine';
 import { useStore, type LinkMode } from '@/state/store';
 import { Btn, Panel, Pill } from '@/components/ui';
 import { cn } from '@/lib/util';
-import { CONTROLS, HULLS, PIPELINE, STACK, type StageKind } from '@/data/platform';
-
-interface Health {
-  ok: boolean;
-  node: string;
-  uptime: number;
-  llm: { configured: boolean; model: string | null };
-  audit: number;
-}
+import { CONTROLS, HULLS, PIPELINE, STACK, type StageKind } from '@/features/edge/platform';
 
 function useHealth() {
-  const [h, setH] = useState<Health | null>(null);
+  const [h, setH] = useState<HealthView | null>(null);
   const [err, setErr] = useState(false);
   useEffect(() => {
     let alive = true;
     const pull = () =>
       fetch('/api/health', { signal: AbortSignal.timeout(2500) })
         .then((r) => r.json())
-        .then((j: Health) => alive && (setH(j), setErr(false)))
+        .then((j: HealthView) => alive && (setH(j), setErr(false)))
         .catch(() => alive && setErr(true));
     pull();
     const id = setInterval(pull, 5000);
@@ -52,7 +48,6 @@ function useHealth() {
   return { h, err };
 }
 
-const up = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m` : `${Math.floor(s / 60)}m ${Math.floor(s % 60)}s`);
 
 const STAGE_ICON: Record<StageKind, LucideIcon> = {
   source: GitCommitHorizontal,
@@ -86,10 +81,10 @@ function Stack() {
   const { h, err } = useHealth();
   const llmEnabled = useStore((s) => s.llmEnabled);
   const live: Record<string, string> = {
-    'navifi-edge': err ? 'unreachable' : h ? `up ${up(h.uptime)}` : '…',
-    'audit-pvc': h ? `${h.audit} rows` : '…',
+    'mission-api': err ? 'unreachable' : h ? (h.ok ? 'chains verified' : 'CHECK FAILED') : '…',
+    postgres: h ? (h.db ? 'connected' : 'DOWN') : '…',
     'vllm-narrator': !llmEnabled ? 'disabled by watch' : h?.llm.configured ? (h.llm.model ?? 'ready') : 'template mode',
-    'navifi-web': 'serving',
+    [`${BRAND.slug}-web`]: 'serving',
   };
   return (
     <Panel
@@ -99,7 +94,7 @@ function Stack() {
       right={
         <span className={cn('flex items-center gap-1.5 font-mono text-[10px]', err ? 'text-crit' : 'text-ok')}>
           <span className={cn('h-1.5 w-1.5 rounded-full', err ? 'bg-crit' : 'animate-blink bg-ok')} />
-          {err ? 'EDGE API DOWN' : h ? `LIVE · ${h.node}` : 'connecting'}
+          {err ? 'MISSION API DOWN' : h ? `LIVE · ${h.node.id}` : 'connecting'}
         </span>
       }
       bodyClass="flex flex-col p-3"
@@ -206,24 +201,25 @@ function Pipeline() {
 }
 
 const LINKS: { id: LinkMode; label: string; icon: LucideIcon; color: string; note: string }[] = [
-  { id: 'SATCOM', label: 'SATCOM', icon: Satellite, color: '#34d399', note: 'Audit forwards in seconds; shore LLM allowed' },
-  { id: 'DDIL', label: 'DDIL', icon: Radio, color: '#fbbf24', note: 'Trickle sync; local LLM or template' },
-  { id: 'DENIED', label: 'EMCON', icon: WifiOff, color: '#fb3b5c', note: 'Nothing leaves the ship; everything still works' },
+  { id: 'SATCOM', label: 'SATCOM', icon: Satellite, color: '#34d399', note: 'Reports and decisions sync with the shore node on every exchange' },
+  { id: 'DDIL', label: 'DDIL', icon: Radio, color: '#fbbf24', note: 'No exchange: records queue aboard, hash-chained, and go in order when the link returns' },
+  { id: 'DENIED', label: 'EMCON', icon: WifiOff, color: '#fb3b5c', note: 'Nothing leaves the ship; everything still computes' },
 ];
 
 function Ddil() {
-  const link = useStore((s) => s.link);
-  const setLink = useStore((s) => s.setLink);
+  const { link: state } = useEngine();
+  const link: LinkMode = state.up ? 'SATCOM' : /emcon/i.test(state.reason ?? '') ? 'DENIED' : 'DDIL';
+  const setLink = (m: LinkMode) => void actions.setLink(m === 'SATCOM', m === 'SATCOM' ? 'Data link restored by watchstander' : m === 'DENIED' ? 'EMCON set by watchstander: no ship-to-shore data path' : 'Link degraded (DDIL) set by watchstander');
   const llm = useStore((s) => s.llmEnabled);
   const setLlm = useStore((s) => s.setLlm);
-  const queued = useStore((s) => s.audit.filter((e) => !e.shoreSynced).length);
+  const queued = state.pendingPush;
   const caps = [
     ['Consequence engine', true],
     ['Options + slack analysis', true],
     ['Monte Carlo', true],
     ['Theater map (offline tiles)', true],
-    ['Audit chain', true],
-    ['Narrative', link === 'DENIED' ? 'template' : llm],
+    ['Hash-chained record', true],
+    ['Narrative', llm ? 'template' : 'template'],
     ['Shore reach-back', link === 'SATCOM'],
   ] as const;
   return (
@@ -255,7 +251,7 @@ function Ddil() {
         ))}
       </div>
       <div className="mt-auto flex items-center gap-3 border-t border-sky-300/10 pt-2">
-        <span className="font-mono text-[10.5px] text-mute">AUDIT QUEUED</span>
+        <span className="font-mono text-[10.5px] text-mute">QUEUED FOR SHORE</span>
         <span className={cn('font-mono text-[14px] font-bold', queued ? 'text-unc' : 'text-ok')}>{queued}</span>
         <label className="ml-auto flex cursor-pointer items-center gap-2 font-mono text-[10.5px] text-sky-200/80">
           LLM narrative

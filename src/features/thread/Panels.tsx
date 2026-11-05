@@ -1,8 +1,9 @@
 import { CircleCheck, FastForward, TriangleAlert, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { EventImpact } from '@/state/engine';
-import type { ChangeEvent, ThreadSpec } from '@/engine/types';
-import { fmtDur } from '@/engine/time';
+import type { ChangeEvent } from '@/api/types';
+import type { ThreadSpec } from './types';
+import { fmtDelta, fmtDur, fmtMargin } from '@/lib/time';
 import { cn } from '@/lib/util';
 import type { StepTime } from './model';
 
@@ -131,14 +132,13 @@ export function verdictFor(imp: EventImpact | undefined, capId: string, slackLef
   const left = slackLeft !== undefined && slackLeft > 1 / 60 ? ` · ${fmtDur(slackLeft)} slack left` : '';
   if (!c || (Math.abs(c.marginDelta) < 1e-6 && !c.statusChanged && !c.controlChanged)) return { tone: 'ok', head: 'ABSORBED', text: `No mission impact${left}` };
   const m = c.after.margin;
-  const margin = Number.isFinite(m) ? (m >= 0 ? fmtDur(m) : `−${fmtDur(-m)}`) : 'never';
+  const margin = c.after.marginKind !== 'exact' ? fmtMargin(m, c.after.marginKind) : m >= 0 ? fmtDur(m) : `−${fmtDur(-m)}`;
   if (c.after.status === 'N' && c.before?.status !== 'N') return { tone: 'crit', head: 'CONTROLS OUTCOME', text: `${c.after.controlling.label} · margin ${margin}` };
   if (c.statusChanged && Math.abs(c.marginDelta) < 1e-6) {
-    const f = c.after.flagsOnChain[0];
-    return { tone: 'warn', head: `CERTAINTY ${c.before?.status}→${c.after.status}`, text: f ? `${f.flag.toUpperCase()} on the critical chain` : c.after.reasons[0] ?? '' };
+    return { tone: 'warn', head: `CERTAINTY ${c.before?.status}→${c.after.status}`, text: c.after.reasons[0] ?? 'data quality on the critical chain' };
   }
-  if (c.marginDelta < 0) return { tone: c.after.status === 'Y' ? 'ok' : 'warn', head: 'EATS MARGIN', text: `${fmtDur(c.marginDelta)} · still ${c.after.status} at ${margin}` };
-  return { tone: 'ok', head: 'IMPROVES', text: `${fmtDur(c.marginDelta, { signed: true })} · ${c.after.status} at ${margin}` };
+  if (c.marginDelta < 0) return { tone: c.after.status === 'Y' ? 'ok' : 'warn', head: 'EATS MARGIN', text: `${fmtDelta(c.marginDelta)} · still ${c.after.status} at ${margin}` };
+  return { tone: 'ok', head: 'IMPROVES', text: `${fmtDelta(c.marginDelta)} · ${c.after.status} at ${margin}` };
 }
 
 const TONE = { ok: '#34d399', warn: '#fbbf24', crit: '#fb3b5c' };

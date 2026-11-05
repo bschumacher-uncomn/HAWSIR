@@ -13,6 +13,8 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
+const BRAND = JSON.parse(fs.readFileSync(new URL('../brand.json', import.meta.url), 'utf8'));
+
 const OUT = 'ai-review.md';
 const write = (md) => {
   fs.writeFileSync(OUT, md);
@@ -42,7 +44,7 @@ const MAX = 60_000;
 const truncated = diff.length > MAX;
 if (truncated) diff = diff.slice(0, MAX);
 
-const SYSTEM = `You review code for NAVIFI, a Navy shipboard readiness decision aid.
+const SYSTEM = `You review code for ${BRAND.name}, a Navy shipboard readiness decision aid.
 Focus, in priority order:
 1. Any path where model output could change a calculated value, issue an order, or write to an authoritative record (must never happen).
 2. Correctness of the deterministic engine (times, margins, monotonicity, off-by-one in windows).

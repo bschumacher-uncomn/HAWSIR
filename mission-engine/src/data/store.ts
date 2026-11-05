@@ -50,6 +50,44 @@ export interface Fact extends FactInput {
   hash: string;
   /** Why the fact failed validation; it is kept but never used as a value. */
   quarantine?: string;
+  /**
+   * When this node received the fact, if later than `recordedAt` (it came in
+   * over a sync after a disconnect). Local metadata: not part of the content
+   * id, so the same report has the same id everywhere, but it is part of this
+   * node's chain hash. Reading "as of" uses it, so a node's picture at a time
+   * shows only what that node actually knew then.
+   */
+  receivedAt?: number;
+}
+
+/** The shareable content of a fact (what the content id covers). */
+export function contentOf(f: Fact | (FactInput & { receivedAt?: number })): FactInput {
+  const { id: _i, seq: _s, prevHash: _p, hash: _h, quarantine: _q, receivedAt: _r, ...content } = f as Fact;
+  return content;
+}
+
+/** When a fact became known on this node. */
+export function knownAt(f: Fact): number {
+  return f.receivedAt ?? f.recordedAt;
+}
+
+function chainHash(prev: string, id: string, receivedAt?: number): string {
+  return sha256(prev + id + (receivedAt !== undefined ? `@${canonical(receivedAt)}` : ''));
+}
+
+/**
+ * Recompute a fact chain from content alone: each content id, each link to the
+ * previous hash. Needs no attribute registry, so any holder of the rows (a
+ * browser, an auditor) can check them without trusting whoever served them.
+ */
+export function verifyFactChain(facts: readonly Fact[]): { ok: boolean; brokenAt?: number } {
+  let prev = GENESIS;
+  for (let i = 0; i < facts.length; i++) {
+    const f = facts[i];
+    if (f.prevHash !== prev || contentId(contentOf(f)) !== f.id || chainHash(prev, f.id, f.receivedAt) !== f.hash) return { ok: false, brokenAt: i };
+    prev = f.hash;
+  }
+  return { ok: true };
 }
 
 export type AttrType = 'number' | 'hours' | 'boolean' | 'string' | 'enum' | 'json' | 'intervals';
@@ -72,6 +110,8 @@ export interface AttributeDef {
   assumed?: unknown;
   /** No fact simply means "nothing to report" (no casualty, no unavailability): not flagged missing. */
   absentMeansNone?: boolean;
+  /** A reported `null` means "reported as not known" (e.g. repair estimate withdrawn): valid, read as missing. */
+  nullable?: boolean;
   description: string;
   citation?: Citation;
 }
@@ -92,6 +132,7 @@ export class AttributeRegistry {
 
 export function validate(def: AttributeDef | undefined, v: unknown): string | undefined {
   if (!def) return undefined;
+  if (v === null && def.nullable) return undefined;
   const num = (x: unknown) => typeof x === 'number' && Number.isFinite(x);
   switch (def.type) {
     case 'number':
@@ -150,27 +191,45 @@ export interface MergeReport {
   contested: string[];
 }
 
+export interface AppendOpts {
+  /** Local receipt time when the fact arrives later than it was recorded (sync after a disconnect). */
+  receivedAt?: number;
+}
+
 export class FactLog {
   private facts: Fact[] = [];
-  private ids = new Set<string>();
+  private ids = new Map<string, Fact>();
 
   constructor(readonly attrs: AttributeRegistry, readonly origin = 'local') {}
 
-  append(input: FactInput): Fact {
-    const withOrigin: FactInput = { ...input, origin: input.origin ?? this.origin, scope: input.scope ?? 'global' };
+  append(input: FactInput, opts: AppendOpts = {}): Fact {
+    const clean = contentOf(input);
+    const withOrigin: FactInput = { ...clean, origin: clean.origin ?? this.origin, scope: clean.scope ?? 'global' };
     const id = contentId(withOrigin);
-    const existing = this.facts.find((f) => f.id === id);
+    const existing = this.ids.get(id);
     if (existing) return existing;
     const prevHash = this.facts.length ? this.facts[this.facts.length - 1].hash : GENESIS;
-    const quarantine = validate(this.attrs.get(input.attr), input.value);
-    const fact: Fact = { ...withOrigin, id, seq: this.facts.length, prevHash, hash: sha256(prevHash + id), ...(quarantine ? { quarantine } : {}) };
+    const quarantine = validate(this.attrs.get(clean.attr), clean.value);
+    const receivedAt = opts.receivedAt !== undefined && opts.receivedAt > clean.recordedAt + 1e-9 ? opts.receivedAt : undefined;
+    const fact: Fact = {
+      ...withOrigin, id, seq: this.facts.length, prevHash, hash: chainHash(prevHash, id, receivedAt),
+      ...(quarantine ? { quarantine } : {}), ...(receivedAt !== undefined ? { receivedAt } : {}),
+    };
     this.facts.push(fact);
-    this.ids.add(id);
+    this.ids.set(id, fact);
     return fact;
   }
 
-  appendMany(inputs: FactInput[]): Fact[] {
-    return inputs.map((i) => this.append(i));
+  appendMany(inputs: FactInput[], opts: AppendOpts = {}): Fact[] {
+    return inputs.map((i) => this.append(i, opts));
+  }
+
+  has(id: string): boolean {
+    return this.ids.has(id);
+  }
+
+  getById(id: string): Fact | undefined {
+    return this.ids.get(id);
   }
 
   all(): readonly Fact[] {
@@ -186,37 +245,34 @@ export class FactLog {
   }
 
   verify(): { ok: boolean; brokenAt?: number } {
-    let prev = GENESIS;
-    for (let i = 0; i < this.facts.length; i++) {
-      const f = this.facts[i];
-      const { id: _id, seq: _seq, prevHash: _p, hash: _h, quarantine: _q, ...content } = f;
-      if (f.prevHash !== prev || contentId(content) !== f.id || sha256(prev + f.id) !== f.hash) return { ok: false, brokenAt: i };
-      prev = f.hash;
-    }
-    return { ok: true };
+    return verifyFactChain(this.facts);
   }
 
   view(asOf: number): FactView {
     return new FactView(this, asOf);
   }
 
-  /** Union with another log (e.g. ship ⇄ shore after a disconnect). Nothing is overwritten. */
-  merge(other: FactLog): MergeReport {
+  /**
+   * Union with another log (e.g. ship ⇄ shore after a disconnect). Nothing is
+   * overwritten. Pass `receivedAt` (this node's clock) so that reading as of an
+   * earlier time does not pretend the merged facts were known then.
+   */
+  merge(other: FactLog | readonly Fact[], opts: AppendOpts = {}): MergeReport {
     let added = 0;
     let duplicates = 0;
     const keys = new Set<string>();
-    const incoming = other.all().slice().sort((a, b) => a.recordedAt - b.recordedAt || a.seq - b.seq);
+    const list = Array.isArray(other) ? (other as readonly Fact[]) : (other as FactLog).all();
+    const incoming = list.slice().sort((a, b) => a.recordedAt - b.recordedAt || a.seq - b.seq);
     for (const f of incoming) {
       if (this.ids.has(f.id)) {
         duplicates++;
         continue;
       }
-      const { id: _i, seq: _s, prevHash: _p, hash: _h, quarantine: _q, ...content } = f;
-      this.append(content);
+      this.append(contentOf(f), opts);
       keys.add(`${f.entity}/${f.attr}`);
       added++;
     }
-    const latest = Math.max(...this.facts.map((f) => f.recordedAt));
+    const latest = Math.max(...this.facts.map(knownAt));
     const v = this.view(latest);
     const contested = [...keys].filter((k) => {
       const [entity, attr] = k.split('/');
@@ -240,8 +296,7 @@ export class FactLog {
     };
     for (const line of text.split('\n').filter(Boolean)) {
       const f = revive(JSON.parse(line)) as Fact;
-      const { id: _i, seq: _s, prevHash: _p, hash: _h, quarantine: _q, ...content } = f;
-      log.append(content);
+      log.append(contentOf(f), { receivedAt: f.receivedAt });
     }
     return log;
   }
@@ -270,7 +325,7 @@ export class FactView {
   constructor(private readonly log: FactLog, readonly asOf: number) {}
 
   private known(): Fact[] {
-    return this.log.all().filter((f) => f.recordedAt <= this.asOf + 1e-9);
+    return this.log.all().filter((f) => knownAt(f) <= this.asOf + 1e-9);
   }
 
   facts(entity: string, attr: string): Fact[] {

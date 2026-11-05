@@ -1,4 +1,4 @@
-import type { ThreadSpec, ThreadStepKind } from '@/engine/types';
+import type { ThreadSpec, ThreadStepKind } from './types';
 
 export const SIZE: Record<ThreadStepKind, { w: number; h: number }> = {
   start: { w: 152, h: 54 },

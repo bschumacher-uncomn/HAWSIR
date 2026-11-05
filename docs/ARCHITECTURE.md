@@ -1,128 +1,116 @@
-# NAVIFI architecture
+# HAWSIR architecture
 
-NAVIFI answers one question for a watch team: **when a fact changes, what happens to the mission?** It computes the answer deterministically, shows how sure it is, offers bounded options, and records what the human decided. A language model may explain the answer. It never produces it.
+HAWSIR answers one question for a watch team: **when a fact changes, what happens to the mission?** It computes the answer deterministically, shows how sure it is, offers bounded options, and records what the human decided. A language model may reword the explanation. It never produces the answer.
 
-## Data flow
+## Components and boundaries
 
 ```mermaid
 flowchart LR
-  subgraph Sources["Source systems (synthetic, read-only)"]
-    OMMS[OMMS-NG<br/>CASREP / JCN]
-    RSUP[R-Supply<br/>ETAs]
-    NSIPS[NSIPS / AMCROSS<br/>personnel]
-    HSM[HSM squadron<br/>aviation det]
-    DLA[DLA tracking]
+  subgraph Node["One node (a ship, or the shore)"]
+    direction LR
+    Web["web app<br/>nginx + static UI"] -->|/api| API
+    subgraph API["mission-api"]
+      direction TB
+      Views["view models<br/>snapshot · analysis · what-if · audit · fleet"]
+      Engine["mission-engine<br/>(in-process, no I/O)"]
+      Logs["fact log + decision log<br/>(working copy)"]
+      Views --> Engine --> Logs
+    end
+    API -->|write-through| PG[(Postgres<br/>this node only)]
   end
-  Sources -->|change events<br/>as patches| State["stateAt(t)<br/>node map"]
-  State --> Engine
-  subgraph Engine["Deterministic engine (src/engine)"]
-    C[compute<br/>topological, monotone]
-    CC[controlling constraint<br/>critical chain]
-    SL[slack vs margin<br/>bisection]
-    CL[cliffs]
-    OP[options + packages]
-    MC[seeded Monte Carlo]
-  end
-  Engine --> UI["Watch floor, graph, horizon,<br/>simulation, theater"]
-  Engine -->|calculated facts only| LLM["Narrator (optional)<br/>OpenAI-compatible"]
-  LLM -->|explanation text| UI
-  UI -->|approve / reject / modify / STOP| Audit["SHA-256 hash chain"]
-  Audit -->|store and forward| Edge["Edge node copy<br/>append-only JSONL"]
+  Feeds["Scripted reports<br/>(synthetic OMMS-NG, R-Supply, NSIPS, DLA, …)"] -->|delivered as the watch clock passes them| Logs
+  API <-->|"sync: ship dials shore<br/>(push facts + decisions, pull shore facts)"| Shore["shore mission-api"]
+  API -.->|"calculated facts only"| LLM["narrator (optional)<br/>OpenAI-compatible"]
 ```
+
+- **The browser only talks to `/api`.** It never sees the database, the raw graph or another node's logs. It does no engine computation. It imports the API's view contract (types, time formatting, wire encoding) and the engine's hashing code, so it can re-verify chains itself.
+- **mission-api is the only writer.** Every write is a reported fact or a decision, attributed to the caller and validated. Writes go through one queue per node, so the in-memory chains and the tables never diverge.
+- **The engine has no I/O.** It runs the same in a test, in the API, or on a disconnected ship.
+
+## Data plane
+
+- **Facts** are bitemporal: when observed, when recorded, and (for facts that arrived over sync) when this node received them.
+  - A fact's id is a hash of its content, so the same report has the same id on every node.
+  - The chain hash also covers the local receipt time.
+  - Reading "as of" t uses only facts this node knew at t. That is how the shore can show what it believed before the link came back.
+- **Validation** happens at append. A malformed value (Marlowe's 142% fuel, an impossible date) is kept but **quarantined**: never used as a value, always shown as a flag.
+- **Resolution** per entity and attribute picks the newest observation. Disagreeing sources are flagged **contradictory**, and the conservative value is chosen. Values past their age limit are flagged **stale**.
+- **Decisions** form a second hash chain:
+  - Kinds: approve, reject, withdraw, monitor, override, stop, resume, note.
+  - Each records who decided, when, on which fact-log head and which result hash, and (for approvals) the exact patches.
+  - Decisions must be recorded in time order.
+- **Postgres** stores both logs per mission, append-only. On load the chains are rebuilt from content and compared with the stored rows, so a row edited in the database shows up as an integrity failure instead of a silent change.
 
 ## The engine
 
-The mission is a dependency graph. Every node kind has a monotone readiness rule, so a later input can never make the mission earlier, and bisection over any input is exact.
+A domain pack compiles facts into a mission graph. The **naval** pack builds one from a fleet model (STEEL TIDE); the **authored** pack loads a hand-written graph whose values are bound to facts (ATLAS SHIELD). Every node kind has one meaning:
 
-| Node | Ready when |
+| Family | Nodes |
 |---|---|
-| `input` | Reported value; conservative `assumed` value if missing; worse value if sources contradict |
-| `person` | First moment outside every unavailability interval |
-| `task` | Predecessors ready, crew available, plus duration |
-| `all` / `any` / `kofn` | Max / min / k-th earliest of dependencies |
-| `gate` | First enabled delivery window the upstream can make, plus transit lag |
-| `capability` | Dependencies ready; compared against `requiredBy` for margin and Y/Q/N |
+| Availability timelines | `event`, `window`, `person`, `task` (crew-constrained), `gate` (delivery slots), `delay`, `all`, `any`, `kofn`, `check`, `threshold`, `requirement` |
+| Quantities | `stock` (fuel, missiles) with burns and transfers |
+| Scalars | `scalar`, `routine` (registered, versioned, contract-checked leaf math such as transit time or fuel burn) |
+
+A requirement's **margin** is `min(lead, tail, stock-hours)`:
+
+- **lead**: how late it could come up;
+- **tail**: how early it could be lost;
+- **stock-hours**: how close a stock comes to its floor.
+
+Status is Y / Q (below the Q threshold, or flagged) / N / UNK (required information missing).
 
 On top of `compute()`:
 
-- **Controlling constraint**: walk the binding predecessors back from the capability to the input, person, window, duration or crew that sets the time. Co-critical constraints are reported so nobody fixes one and misses the other.
-- **Upstream slack vs. mission margin**: for each input, bisection finds how far it can slip with zero effect (`noImpact`) and how far before the mission fails (`toFailure`). The classic example: the part has 2 h slack and 3 h to failure; the team has none.
-- **Cliffs**: scanning the consequence curve finds steps where one more increment of slip costs far more than the slip (missed sail date, missed fly-on window).
-- **Options**: each lever is a set of patches. Singles and pairs are evaluated against the target capability, with side effects on the others. Levers carry their approval authority and deadline.
-- **Monte Carlo**: triangular distributions on uncertain inputs, seeded PRNG (mulberry32). The same seed gives the same futures, so the run is reproducible and auditable. Runs stream incrementally so the UI stays live.
+- **Attribution.** A cause tree walks from the requirement's binding edge to the leaves that set the time: an input time, a person, a slot, a duration, a crew, a consumption. Leaves that bind together are reported as co-critical.
+- **Slack vs. margin.** Bisection when the path is monotone, a scan otherwise. It gives `noImpact` (slip with zero effect) and `toFailure` (slip until the requirement is N).
+- **Cliffs.** Steps in the consequence curve where one more hour of slip costs far more than an hour, usually a missed window.
+- **Options.**
+  - A lever is a named set of patches with an authority, an act-by time, a cost and a declared risk.
+  - Singles and synergistic pairs are evaluated against the target, with side effects on every other requirement.
+  - Exclusive alternatives are never paired.
+- **Monte Carlo.** Triangular uncertainty on times, durations and burn rates, with a seeded PRNG: same seed, same futures.
 
-The engine has no I/O. It runs in the browser, so the full answer is available with the link down.
+## View layer (mission-api/src/views)
+
+The screens were designed around a simpler engine. The view layer projects the new engine's results into those shapes without changing any number:
+
+- the display class of each node;
+- the ship part on the 3D twin;
+- clamped "ready" times;
+- explanation lines built only from computed results.
+
+Unbounded values travel as `"Infinity"` / `"-Infinity"` and are revived in the browser. A margin with nothing limiting it is labelled `≥ <rest of horizon>` (`marginKind: atLeast`), never ∞.
+
+Views are memoised on the content key of the picture: the time, plus the hash of the facts known then and the decisions made by then. A replay therefore costs one computation per distinct picture. The browser fetches pictures every hour of scenario time (15 minutes on an H-hour scale) and exactly at each report. The heavier analysis (slack, options, Monte Carlo) runs on a 6 h (1 h) step.
+
+## The watch clock
+
+The presenter drives time from the screen. mission-api's per-mission clock follows: before showing a time ahead of the clock, the browser moves the clock forward, which delivers every scripted report due by then. Looking back needs no move. Those moves are queued per mission, so two views can't race the clock backwards. Decisions are recorded at the time on screen.
+
+In operational mode (`DEMO_MODE=0`) the clock follows the wall clock and cannot be moved.
 
 ## AI boundary
 
 ```mermaid
 sequenceDiagram
-  participant E as Engine
-  participant N as Narrator (LLM)
+  participant E as Engine (mission-api)
+  participant N as Narrator (optional LLM)
   participant W as Watchstander
-  participant A as Audit chain
-  E->>W: Facts: status, margin, controlling constraint, options
-  E->>N: Same facts + deterministic draft
-  N-->>W: Plain-language explanation (violet, labeled AI)
-  Note over N: Never sees raw records, never writes back,<br/>never in the calculation path
-  W->>A: APPROVE / REJECT / MODIFY with note
-  A-->>W: Entry hashed onto chain
+  participant D as Decision chain
+  E->>W: Computed picture, explanation lines, bounded options
+  W->>E: Ask for a narrative
+  E->>N: The same lines + deterministic brief
+  N-->>E: Reworded brief
+  Note over E: Rejected unless every time, duration and number<br/>in it already appears in the facts
+  E-->>W: Reworded brief (labelled AI), or the template
+  W->>D: Approve / reject / withdraw / STOP, with note
 ```
 
-- If the narrator is unavailable, disabled, or the ship is in EMCON, the deterministic template text is shown. Answers do not change.
-- Approved options become **planning assumptions** inside NAVIFI. They do not issue orders, direct personnel, authorize maintenance, alter tasking, or write to any authoritative system.
-- STOP suspends the narrative and options immediately and is itself logged.
+## Ship ⇄ shore
 
-## Audit
+The ship node always dials out. While its link is up, every few seconds:
 
-Every entry is `sha256(prev_hash + canonical_json(entry))`. The client keeps the chain; the edge server re-hashes each entry on receipt and appends it to `audit.jsonl`. The Decision Log screen can re-verify the chain, demonstrate a tamper, and restore the altered entry from the edge copy by hash.
+1. **Push.** The ship sends its new facts and decisions. The shore merges facts by content id (duplicates are dropped and nothing is overwritten). It keeps the ship's decision chain beside its own, verified, never merged.
+2. **Pull.** The ship fetches shore facts it hasn't seen. The shore's sharing policy withholds other ships' personnel records.
 
-## Disconnected operation
-
-| Link | Behavior |
-|---|---|
-| SATCOM | Audit forwards in batches; shore model allowed if configured |
-| DDIL | Audit trickles one entry at a time; local model or template |
-| EMCON | Nothing leaves the ship; engine, map, simulation and audit all keep working |
-
-The theater basemap is vector data bundled in the app (Natural Earth via world-atlas). No tile server.
-
-## Deployment
-
-```mermaid
-flowchart TB
-  subgraph Hull["Shipboard rack (air-gapped)"]
-    subgraph RHEL["RHEL 9 · DISA STIG · FIPS · SELinux"]
-      subgraph RKE2["RKE2 · CIS profile"]
-        subgraph UDS["UDS Core"]
-          Istio[Istio mTLS]
-          KC[Keycloak SSO]
-          Pepr[Pepr policy]
-          NV[NeuVector]
-          Obs[Prometheus + Loki]
-        end
-        subgraph App["namespace navifi"]
-          Web[navifi edge node<br/>UI + API]
-          PVC[(audit PVC)]
-          VLLM[vLLM narrator<br/>optional]
-        end
-      end
-    end
-  end
-  Bundle["uds-bundle: zarf init + UDS Core + NAVIFI"] -->|sneakernet or DDIL| Hull
-```
-
-See [DEPLOY.md](DEPLOY.md) for build and deploy steps.
-
-## Repository map
-
-| Path | What |
-|---|---|
-| `src/engine` | Deterministic engine, analysis, options, Monte Carlo (tested in `engine.test.ts`) |
-| `src/data` | Scenarios as data: DDG 21-day readiness, classic radar repair, platform metadata |
-| `src/routes`, `src/features` | Screens and their components |
-| `server/index.ts` | Edge node API: health, metrics, audit, narrate |
-| `deploy/chart/navifi` | Helm chart with UDS Package CR and optional vLLM |
-| `zarf.yaml`, `uds-bundle.yaml` | Air-gap packaging |
-| `compliance/oscal-component.yaml` | OSCAL component definition (generated by `ci/gen-oscal.ts`) |
-| `ci/ai-review.mjs` | Advisory AI code review used by CI |
+When the link drops (a scripted SATCOM casualty, or the EMCON / DDIL buttons), nothing is lost: records queue aboard, hash-chained, and go in order when it returns.

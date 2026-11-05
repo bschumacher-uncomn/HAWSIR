@@ -3,7 +3,7 @@ import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Bloom, EffectComposer, Vignette } from '@react-three/postprocessing';
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import * as THREE from 'three';
-import type { ShipPart } from '@/engine/types';
+import type { ShipPart } from '@/api/types';
 import type { PartState } from './shipState';
 
 const BASE = '#22d3ee';

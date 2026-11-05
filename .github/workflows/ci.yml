@@ -14,9 +14,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-
 jobs:
   ai-review:
     name: AI review (advisory)
@@ -40,15 +37,26 @@ jobs:
   test:
     name: Typecheck, test, build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      PG_URL: postgres://postgres:postgres@localhost:5432
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+        with: { node-version: 22, cache: pnpm }
+      - name: Engine (deterministic core, scenarios, fleet lab)
+        run: npm --prefix mission-engine ci && npm --prefix mission-engine run typecheck && npm --prefix mission-engine test
+      - name: mission-api (against Postgres)
+        run: npm --prefix mission-api ci && npm --prefix mission-api run typecheck && npm --prefix mission-api test && npm --prefix mission-api run build
+      - name: Web app
+        run: pnpm install --frozen-lockfile && pnpm typecheck && pnpm test && pnpm build
       - name: OSCAL artifact matches the controls in source
         run: pnpm oscal && git diff --exit-code compliance/
 
@@ -61,9 +69,16 @@ jobs:
       - run: semgrep scan --config p/typescript --config p/secrets --config p/dockerfile --error
 
   image:
-    name: Image, SBOM, CVE scan, sign
+    name: Image, SBOM, CVE scan, sign (${{ matrix.name }})
     needs: [test, sast]
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { name: web, dockerfile: Dockerfile }
+          - { name: api, dockerfile: mission-api/Dockerfile }
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/hawsir-${{ matrix.name }}
     permissions:
       contents: read
       packages: write
@@ -81,14 +96,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           push: ${{ github.event_name != 'pull_request' }}
           load: ${{ github.event_name == 'pull_request' }}
           tags: |
             ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:0.10.0
-          build-args: |
-            BUILD_IMAGE=${{ vars.BUILD_IMAGE || 'registry.access.redhat.com/ubi9/nodejs-20:latest' }}
-            RUNTIME_IMAGE=${{ vars.RUNTIME_IMAGE || 'registry.access.redhat.com/ubi9/nodejs-20-minimal:latest' }}
+            ${{ env.IMAGE }}:0.11.0
       - name: SBOM (Syft)
         uses: anchore/sbom-action@v0
         with:
@@ -110,7 +123,9 @@ jobs:
           cosign sign --yes "$ref"
           cosign attest --yes --type spdxjson --predicate sbom.spdx.json "$ref"
       - uses: actions/upload-artifact@v4
-        with: { name: sbom, path: sbom.spdx.json }
+        with:
+          name: sbom-${{ matrix.name }}
+          path: sbom.spdx.json
 
   compliance:
     name: Deploy to UDS k3d + Lula validate
@@ -123,7 +138,7 @@ jobs:
         uses: defenseunicorns/uds-common/.github/actions/setup@main
       - run: uds deploy k3d-core-slim-dev:0.29.1 --confirm
       - run: zarf package create . --confirm -o build/
-      - run: zarf package deploy build/zarf-package-navifi-*.tar.zst --confirm
+      - run: zarf package deploy build/zarf-package-hawsir-*.tar.zst --confirm
       - name: Lula validate
         uses: defenseunicorns/lula-action/setup@main
       - run: lula validate -f compliance/oscal-component.yaml -o build/assessment-results.yaml
@@ -141,4 +156,4 @@ jobs:
       - run: zarf package create . --confirm -o build/
       - run: uds create . --confirm -o build/
       - uses: actions/upload-artifact@v4
-        with: { name: navifi-ship-bundle, path: build/uds-bundle-*.tar.zst }
+        with: { name: hawsir-ship-bundle, path: build/uds-bundle-*.tar.zst }

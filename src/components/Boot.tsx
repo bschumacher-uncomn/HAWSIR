@@ -1,47 +1,74 @@
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { scenarioById } from '@/data/scenarios';
+import { api } from '@/api/client';
+import type { HealthView, MissionSummary } from '@/api/types';
+import { BRAND } from '@/brand';
+import { useEngine } from '@/state/engine';
 import { useStore } from '@/state/store';
 
-const LINES: { tag: 'OK' | '--' | 'AI' | '!!'; text: string; sub?: string }[] = [
-  { tag: 'OK', text: 'Red Hat Enterprise Linux 9.4', sub: 'DISA STIG profile applied · FIPS 140-3 mode · SELinux enforcing' },
-  { tag: 'OK', text: 'RKE2 v1.31 (CIS hardened)', sub: '3/3 nodes Ready · etcd encrypted at rest' },
-  { tag: 'OK', text: 'UDS Core', sub: 'Istio mTLS STRICT · Keycloak SSO (CAC) · NeuVector · Loki · Prometheus · Pepr policy' },
-  { tag: 'OK', text: 'Zarf package navifi:0.10.0', sub: 'cosign signature verified · SBOM attested (412 components) · 0 critical CVEs' },
-  { tag: 'OK', text: 'Lula OSCAL assessment', sub: '47/48 NIST 800-53 controls satisfied (AU · AC · SC · SI · CM)' },
-  { tag: 'OK', text: 'Data adapters (read-only)', sub: 'OMMS-NG · R-Supply · NSIPS · SKED · DRRS-N · AMHS · CMS · HSM' },
-  { tag: 'OK', text: 'Deterministic consequence engine', sub: 'self-test 39/39 · critical chain · slack · Monte Carlo (seeded)' },
-  { tag: 'AI', text: 'Local LLM (in-cluster, OpenAI-compatible API)', sub: 'advisory narrative only · never source of operational truth' },
-  { tag: '--', text: 'Shore link SATCOM 2.1 Mbps', sub: 'store-and-forward armed · core workflow runs fully disconnected' },
-  { tag: '!!', text: 'HUMAN AUTHORITY ENFORCED', sub: 'agent may analyze, explain, propose · may not order, direct, authorize or modify records' },
-];
+type Tag = 'OK' | '--' | 'AI' | '!!' | 'XX';
+interface BootLine {
+  tag: Tag;
+  text: string;
+  sub?: string;
+}
 
-const TAG_COLOR = { OK: '#34d399', '--': '#fbbf24', AI: '#a78bfa', '!!': '#22d3ee' };
+const TAG_COLOR: Record<Tag, string> = { OK: '#34d399', '--': '#fbbf24', AI: '#a78bfa', '!!': '#22d3ee', XX: '#fb3b5c' };
+
+/** Every line is read from the node's own health check; nothing on this screen is asserted without one. */
+function useBootLines(): BootLine[] | null {
+  const [lines, setLines] = useState<BootLine[] | null>(null);
+  useEffect(() => {
+    Promise.all([api.get<HealthView>('/health'), api.get<{ missions: MissionSummary[] }>('/missions')])
+      .then(([h, m]) => {
+        const out: BootLine[] = [
+          { tag: h.db ? 'OK' : 'XX', text: `mission-api · ${h.node.label}`, sub: `node ${h.node.id} · Postgres ${h.db ? 'connected' : 'UNREACHABLE'} · the only door to the data` },
+        ];
+        for (const ms of m.missions) {
+          const x = h.missions[ms.id];
+          const ok = x && x.facts.ok && x.decisions.ok && !x.storedRowMismatches.length;
+          out.push({
+            tag: ok ? 'OK' : 'XX', text: ms.name,
+            sub: ok ? 'fact chain and decision chain re-verified from stored rows' : `integrity check failed${x?.storedRowMismatches.length ? ` (${x.storedRowMismatches.length} edited rows)` : ''}`,
+          });
+        }
+        out.push(
+          { tag: 'OK', text: 'Deterministic consequence engine', sub: 'same facts, same answer · every number traces to a source record · seeded Monte Carlo' },
+          { tag: 'AI', text: h.llm.configured ? `Narrative model: ${h.llm.model}` : 'Narrative model: not configured', sub: h.llm.configured ? 'rewording only; rejected if it introduces any value not in the facts' : 'deterministic briefs (no model needed)' },
+          { tag: '!!', text: 'HUMAN AUTHORITY ENFORCED', sub: 'may analyze, explain, propose · may not order, direct, authorize or modify records' },
+        );
+        setLines(out);
+      })
+      .catch((e) => setLines([{ tag: 'XX', text: 'mission-api unreachable', sub: (e as Error).message }]));
+  }, []);
+  return lines;
+}
 
 export function Boot() {
   const setBooted = useStore((s) => s.setBooted);
-  const log = useStore((s) => s.log);
-  const ship = useStore((s) => scenarioById(s.scenarioId).ship);
+  const { scenario } = useEngine();
+  const ship = scenario.ship;
+  const LINES = useBootLines() ?? [];
   const [n, setN] = useState(0);
-  const done = n >= LINES.length;
+  const done = LINES.length > 0 && n >= LINES.length;
 
   useEffect(() => {
-    if (done) return;
+    if (done || !LINES.length) return;
     const id = setTimeout(() => setN((x) => x + 1), n === 0 ? 500 : 260 + Math.random() * 220);
     return () => clearTimeout(id);
-  }, [n, done]);
+  }, [n, done, LINES.length]);
 
   const enter = () => {
-    sessionStorage.setItem('navifi-booted', '1');
-    log('SYSTEM', 'SESSION_START', 'Edge node verified; watch session opened', { lines: LINES.length });
+    sessionStorage.setItem(`${BRAND.slug}-booted`, '1');
     setBooted(true);
   };
 
   useEffect(() => {
-    const k = (e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && enter();
-    window.addEventListener('keydown', k);
-    return () => window.removeEventListener('keydown', k);
-  });
+    const onKey = (e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && enter();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="ocean-bg relative flex h-full items-center justify-center overflow-hidden" onDoubleClick={enter}>
@@ -81,10 +108,10 @@ export function Boot() {
               transition={{ duration: 1.8, delay: 0.4 }}
             />
           </svg>
-          <div className="mt-4 font-display text-5xl font-bold tracking-[0.35em] text-white glow-calc">NAVIFI</div>
-          <div className="mt-2 font-display text-[11px] font-semibold tracking-[0.4em] text-calc/80">MISSION CONSEQUENCE ENGINE</div>
+          <div className="mt-4 font-display text-5xl font-bold tracking-[0.35em] text-white glow-calc">{BRAND.name}</div>
+          <div className="mt-2 font-display text-[11px] font-semibold uppercase tracking-[0.4em] text-calc/80">{BRAND.tagline}</div>
           <div className="mt-6 text-center font-mono text-[10.5px] leading-relaxed text-mute">
-            EDGE NODE · {ship.name} ({ship.hull})
+            {scenario.mission.name} · {ship.name} ({ship.hull})
             <br />
             SYNTHETIC · UNCLASSIFIED
           </div>
@@ -92,7 +119,7 @@ export function Boot() {
 
         <div className="hud min-w-0 flex-1 p-5">
           <div className="mb-3 flex items-center justify-between">
-            <span className="label !text-calc">System verification</span>
+            <span className="label !text-calc">Node verification</span>
             <span className="font-mono text-[10px] text-mute">{Math.min(n, LINES.length)}/{LINES.length}</span>
           </div>
           <div className="space-y-2">
@@ -110,7 +137,7 @@ export function Boot() {
             {!done && <div className="h-4 w-2 animate-blink bg-calc" />}
           </div>
           <div className="mt-5 h-[3px] overflow-hidden rounded bg-white/5">
-            <motion.div className="h-full bg-gradient-to-r from-calc to-blue-500 shadow-[0_0_12px_#22d3ee]" animate={{ width: `${(Math.min(n, LINES.length) / LINES.length) * 100}%` }} />
+            <motion.div className="h-full bg-gradient-to-r from-calc to-blue-500 shadow-[0_0_12px_#22d3ee]" animate={{ width: `${LINES.length ? (Math.min(n, LINES.length) / LINES.length) * 100 : 0}%` }} />
           </div>
           <div className="mt-5 flex items-center justify-between">
             <span className="font-mono text-[10px] text-mute">ENTER or double-click to skip</span>

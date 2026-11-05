@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { fmtDur, fmtT } from '@/engine/time';
+import { fmtDelta, fmtT } from '@/lib/time';
 import { useEngine, type EventImpact } from '@/state/engine';
 import { useStore } from '@/state/store';
 import { cn } from '@/lib/util';
@@ -10,9 +10,9 @@ export function impactTag(imp: EventImpact): { text: string; color: string } {
   const moved = imp.diff.caps.filter((c) => Math.abs(c.marginDelta) > 1e-6 || c.statusChanged || c.controlChanged);
   if (!moved.length) return { text: imp.event.kind === 'quality' ? 'FLAGGED · NO CONSEQUENCE' : 'NO MISSION CONSEQUENCE', color: '#34d399' };
   const worst = [...moved].sort((a, b) => a.marginDelta - b.marginDelta)[0];
-  if (worst.marginDelta < -1e-6) return { text: `${worst.code} ${fmtDur(worst.marginDelta, { signed: true })}`, color: worst.after.status === 'N' || worst.marginDelta < -48 ? '#fb3b5c' : '#fbbf24' };
+  if (worst.marginDelta < -1e-6) return { text: `${worst.code} ${fmtDelta(worst.marginDelta)}`, color: worst.after.status === 'N' || worst.marginDelta < -48 ? '#fb3b5c' : '#fbbf24' };
   if (worst.controlChanged) return { text: `${worst.code} CONTROL SHIFT`, color: '#fbbf24' };
-  if (worst.marginDelta > 1e-6) return { text: `${worst.code} ${fmtDur(worst.marginDelta, { signed: true })}`, color: '#34d399' };
+  if (worst.marginDelta > 1e-6) return { text: `${worst.code} ${fmtDelta(worst.marginDelta)}`, color: '#34d399' };
   return { text: `${worst.code} ${worst.before?.status}→${worst.after.status}`, color: '#fbbf24' };
 }
 
