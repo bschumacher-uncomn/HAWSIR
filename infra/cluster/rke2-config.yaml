@@ -5,8 +5,8 @@ write-kubeconfig-mode: "0600"
 # RHEL 9 runs SELinux enforcing; the rke2-selinux package supplies the policy.
 selinux: true
 
-# Istio gateways from UDS Core are the only ingress. RKE2's metrics-server stays,
-# which is why the bundle leaves UDS Core's optional metrics-server off.
-disable:
-  - rke2-ingress-nginx
-  - rke2-traefik
+# Istio gateways from UDS Core are the only ingress. "none" also drops the
+# rke2-traefik-crd chart, whose Gateway API CRDs would block UDS Core's own.
+# RKE2's metrics-server stays, which is why the bundle leaves UDS Core's
+# optional metrics-server off.
+ingress-controller: none
