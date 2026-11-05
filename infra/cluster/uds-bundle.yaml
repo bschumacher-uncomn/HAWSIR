@@ -148,15 +148,29 @@ packages:
               sensitive: true
         uds-loki-config:
           values:
-            # Egress to MinIO only, instead of the default "anywhere".
+            # Egress to MinIO only, instead of the default "anywhere". That default
+            # is also what lets Loki and Velero reach the Kubernetes API, so the
+            # pods that need it get an explicit KubeAPI rule.
             - path: storage.internal
               value: { enabled: true, remoteNamespace: uds-storage, remoteSelector: { app: minio } }
+            - path: additionalNetworkAllow
+              value:
+                - direction: Egress
+                  selector: { app.kubernetes.io/name: loki, app.kubernetes.io/component: backend }
+                  remoteGenerated: KubeAPI
+                  description: Rules sidecar reads rule ConfigMaps and Secrets
 
       velero:
         uds-velero-config:
           values:
             - path: storage.internal
               value: { enabled: true, remoteNamespace: uds-storage, remoteSelector: { app: minio } }
+            - path: additionalNetworkAllow
+              value:
+                - direction: Egress
+                  selector: { app.kubernetes.io/name: velero }
+                  remoteGenerated: KubeAPI
+                  description: Velero server
 
       # ---------------------------------------------------------- sizing
       falco:
