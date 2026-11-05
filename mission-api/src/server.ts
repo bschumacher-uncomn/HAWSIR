@@ -7,7 +7,7 @@ import { HttpError, type ManualFactInput } from './mission';
 import { narrate, narrateStats } from './narrate';
 import type { NodeRuntime } from './node';
 import { receivePush, servePull, SHARE_POLICY } from './sync';
-import type { DecisionRequest, HealthView, MissionSummary, NarrateRequest, WhatIfRequest } from './views/contract';
+import type { DecisionRequest, HealthView, McChunkRequest, MissionSummary, NarrateRequest, SensitivityRequest, WhatIfRequest } from './views/contract';
 import { MissionViews } from './views/service';
 
 type Handler = (req: Request, res: Response) => unknown | Promise<unknown>;
@@ -148,6 +148,11 @@ export function createServer(node: NodeRuntime): express.Express {
   app.get('/api/m/:mission/analysis/:cap', h((req) => viewsOf(req).capAnalysis(at(req), req.params.cap)));
   app.get('/api/m/:mission/nodes/:node', h((req) => viewsOf(req).nodeAnalysis(at(req), req.params.node, String(req.query.cap ?? ''))));
   app.post('/api/m/:mission/whatif', h((req) => viewsOf(req).whatIf(at(req), ((req.body ?? {}) as WhatIfRequest).shifts ?? {})));
+  app.post('/api/m/:mission/montecarlo', h((req) => viewsOf(req).monteCarlo(at(req), (req.body ?? {}) as McChunkRequest)));
+  app.post('/api/m/:mission/sensitivity', h((req) => {
+    const body = (req.body ?? {}) as SensitivityRequest;
+    return viewsOf(req).sensitivity(at(req), String(body.target ?? ''), body.shifts);
+  }));
   app.get('/api/m/:mission/slip', h((req) => {
     const seed = Number(req.query.seed ?? Date.now() % 1e9);
     if (!Number.isFinite(seed)) throw new HttpError(400, 'seed must be a number');

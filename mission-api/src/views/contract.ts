@@ -326,6 +326,56 @@ export interface McView {
   uncertain: string[];
 }
 
+export interface McChunkRequest {
+  at?: Hours;
+  seed: number;
+  /** First run of this chunk; chunks of one seed concatenate into one reproducible run. */
+  start: number;
+  count: number;
+  /** What-if shifts (hours) applied before sampling, as in WhatIfRequest. */
+  shifts?: Record<string, number>;
+}
+
+export interface McChunkTarget {
+  /** Finite margins only, one per run; the runs that had none are counted below. */
+  margins: number[];
+  /** Runs with no reachable delivery window (margin −∞). */
+  never: number;
+  /** Runs with no binding constraint in the horizon (margin +∞). */
+  unbounded: number;
+  unknown: number;
+  status: Record<Readiness, number>;
+  /** Runs in which each node sat on this capability's critical chain. */
+  chain: Record<string, number>;
+  /** Runs in which each leaf constraint controlled this capability. */
+  controlling: Record<string, number>;
+}
+
+export interface McChunk {
+  at: Hours;
+  seed: number;
+  start: number;
+  count: number;
+  targets: Record<string, McChunkTarget>;
+  uncertain: string[];
+  computeMs: number;
+}
+
+export interface SensitivityRequest {
+  at?: Hours;
+  target: string;
+  shifts?: Record<string, number>;
+}
+
+/** Capability margin with one uncertain input held at each end of its range; null = no finite margin. */
+export interface SensitivityBar {
+  nodeId: string;
+  label: string;
+  low: number | null;
+  high: number | null;
+  swing: number;
+}
+
 export interface CapAnalysis {
   slack: SlackResult[];
   cliffs: Cliff[];

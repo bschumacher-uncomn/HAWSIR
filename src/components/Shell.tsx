@@ -1,6 +1,7 @@
 import {
   Activity,
   Cpu,
+  Dices,
   FastForward,
   Globe,
   Network,
@@ -41,6 +42,7 @@ const NAV = [
   { to: '/', icon: Radar, label: 'Watch Floor', hint: 'Five answers' },
   { to: '/thread', icon: Workflow, label: 'Mission Thread', hint: 'Executable thread' },
   { to: '/graph', icon: Network, label: 'Consequence Graph', hint: 'What controls' },
+  { to: '/sim', icon: Dices, label: 'Monte Carlo', hint: 'Seeded futures' },
   { to: '/theater', icon: Globe, label: 'Theater', hint: 'Every movement on the map' },
   { to: '/lab', icon: TestTube, label: 'Fleet Lab', hint: 'Whole fleet · disruptions · slips' },
   { to: '/log', icon: ScrollText, label: 'Decision Log', hint: 'Hash-chained record' },

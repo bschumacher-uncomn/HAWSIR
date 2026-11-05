@@ -1,13 +1,13 @@
 import {
-  applyPatches, compute, consequenceCurve, DEFAULT_AUTHORITY, downstreamOf, evaluateOptions, findCliffs, knownAt, mulberry32, runMonteCarlo,
-  shiftable, slackFor, toMap, verifyFactChain,
+  applyPatches, compute, consequenceCurve, DEFAULT_AUTHORITY, downstreamOf, evaluateOptions, findCliffs, knownAt, mcBatch, mulberry32, runMonteCarlo,
+  shiftable, slackFor, toMap, tornado, verifyFactChain,
   type Evaluation, type Fact, type Lever, type OptionEval as EngineOption, type Patch, type ScenarioEvent,
 } from '../engine';
 import { attrLabel, valueText } from '../labels';
 import { HttpError, type MissionRuntime } from '../mission';
 import type {
-  AuditView, CapAnalysis, Cliff, ControllingConstraint, CurvePoint, EngineView, EventImpact, EventView, LeverView, McView, MissionView, NodeAnalysis,
-  OptionEval, SlackResult, SlipChallenge, Snapshot, ViewNode, WhatIfResult,
+  AuditView, CapAnalysis, Cliff, ControllingConstraint, CurvePoint, EngineView, EventImpact, EventView, LeverView, McChunk, McChunkRequest, McChunkTarget,
+  McView, MissionView, NodeAnalysis, OptionEval, SensitivityBar, SlackResult, SlipChallenge, Snapshot, ViewNode, WhatIfResult,
 } from './contract';
 import { fmtT } from './format';
 import { capabilityLines, diffCaps, eventLines, type FactChange } from './lines';
@@ -15,6 +15,24 @@ import { engineView, viewNodes } from './map';
 
 const MC_RUNS = 400;
 const MC_SEED = 1337;
+const MC_MAX_RUNS = 10_000;
+const MC_MAX_CHUNK = 1_000;
+
+/** Valid what-if shifts as sorted [id, hours] pairs (the order is part of memo keys). */
+function cleanShifts(shifts: Record<string, number> | undefined): [string, number][] {
+  const clean = Object.entries(shifts ?? {}).filter(([, h]) => typeof h === 'number' && Number.isFinite(h) && Math.abs(h) > 1e-9);
+  if (clean.length > 40) throw new HttpError(413, 'at most 40 shifted inputs per what-if');
+  for (const [, h] of clean) if (Math.abs(h) > 24 * 60) throw new HttpError(422, 'a shift is limited to 60 days either way');
+  return clean.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+/** The evaluated graph with the shiftable inputs among the what-if shifts moved. */
+function shifted(ev: Evaluation, clean: [string, number][]) {
+  if (!clean.length) return ev.graph;
+  const specs = toMap(ev.graph);
+  const patches: Patch[] = clean.filter(([id]) => specs[id] && shiftable(specs[id], ev.ctx.now)).map(([id, hours]) => ({ op: 'shift', id, hours }));
+  return applyPatches(ev.graph, patches);
+}
 
 /**
  * Everything the HAWSIR screens read, computed from one mission's logs. Each
@@ -266,20 +284,61 @@ export class MissionViews {
 
   whatIf(t: number, shifts: Record<string, number>): WhatIfResult {
     const m = this.m;
-    const clean = Object.entries(shifts ?? {}).filter(([, h]) => typeof h === 'number' && Number.isFinite(h) && Math.abs(h) > 1e-9);
-    if (clean.length > 40) throw new HttpError(413, 'at most 40 shifted inputs per what-if');
-    for (const [, h] of clean) if (Math.abs(h) > 24 * 60) throw new HttpError(422, 'a shift is limited to 60 days either way');
-    return m.memo('whatif', `${JSON.stringify(clean.sort())}|${m.key(t)}`, () => {
+    const clean = cleanShifts(shifts);
+    return m.memo('whatif', `${JSON.stringify(clean)}|${m.key(t)}`, () => {
       const t0 = performance.now();
       const ev = m.evaluate(t);
-      const specs = toMap(ev.graph);
-      const patches: Patch[] = clean.filter(([id]) => specs[id] && shiftable(specs[id], ev.ctx.now)).map(([id, hours]) => ({ op: 'shift', id, hours }));
-      const g = applyPatches(ev.graph, patches);
+      const g = shifted(ev, clean);
       const r = compute(g, ev.ctx);
       return {
         at: t, nodes: viewNodes(g, r, m.ownShip), result: engineView(g, r, ev.build.focus, m.frame),
         computeMs: Math.round((performance.now() - t0) * 10) / 10,
       };
+    });
+  }
+
+  /** One chunk of a seeded Monte Carlo over the picture at t (what-if shifts applied). */
+  monteCarlo(t: number, req: McChunkRequest): McChunk {
+    const m = this.m;
+    const seed = Number(req.seed);
+    const start = Number(req.start);
+    const count = Number(req.count);
+    if (!Number.isInteger(seed) || seed < 0 || seed > 2 ** 32 - 1) throw new HttpError(422, 'seed must be an integer in [0, 2^32)');
+    if (!Number.isInteger(start) || start < 0 || start >= MC_MAX_RUNS) throw new HttpError(422, `start must be an integer in [0, ${MC_MAX_RUNS})`);
+    if (!Number.isInteger(count) || count < 1 || count > MC_MAX_CHUNK || start + count > MC_MAX_RUNS) {
+      throw new HttpError(422, `count must be 1–${MC_MAX_CHUNK} and stay within ${MC_MAX_RUNS} runs`);
+    }
+    const clean = cleanShifts(req.shifts);
+    return m.memo('mc-chunk', `${seed}|${start}|${count}|${JSON.stringify(clean)}|${m.key(t)}`, () => {
+      const t0 = performance.now();
+      const ev = m.evaluate(t);
+      const b = mcBatch(shifted(ev, clean), ev.ctx, Object.keys(ev.result.requirements), seed, start, count);
+      const targets: McChunk['targets'] = {};
+      for (const [id, x] of Object.entries(b.targets)) {
+        const o: McChunkTarget = { margins: [], never: 0, unbounded: 0, unknown: 0, status: x.status, chain: x.chain, controlling: x.controlling };
+        for (const v of x.margins) {
+          if (Number.isFinite(v)) o.margins.push(v);
+          else if (Number.isNaN(v)) o.unknown++;
+          else if (v > 0) o.unbounded++;
+          else o.never++;
+        }
+        targets[id] = o;
+      }
+      return { at: t, seed, start, count, targets, uncertain: b.uncertainNodes, computeMs: Math.round((performance.now() - t0) * 10) / 10 };
+    });
+  }
+
+  /** One-at-a-time sensitivity of a capability's margin to each uncertain input. */
+  sensitivity(t: number, target: string, shifts?: Record<string, number>): SensitivityBar[] {
+    const m = this.m;
+    const clean = cleanShifts(shifts);
+    return m.memo('sensitivity', `${target}|${JSON.stringify(clean)}|${m.key(t)}`, () => {
+      const ev = m.evaluate(t);
+      if (!ev.result.requirements[target]) throw new HttpError(404, `no capability "${target}" in the picture at this time`);
+      const fin = (x: number) => (Number.isFinite(x) ? x : null);
+      return tornado(shifted(ev, clean), ev.ctx, target)
+        .filter((b) => b.swing > 1e-6)
+        .map((b) => ({ nodeId: b.node, label: b.label, low: fin(b.low), high: fin(b.high), swing: b.swing }));
     });
   }
 

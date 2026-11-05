@@ -13,6 +13,7 @@ import { WatchFloor } from './routes/WatchFloor';
 const FleetLab = lazy(() => import('./labs/fleet/FleetRoute'));
 const MissionThread = lazy(() => import('./routes/MissionThread'));
 const GraphView = lazy(() => import('./routes/GraphView'));
+const Simulate = lazy(() => import('./routes/Simulate'));
 const Theater = lazy(() => import('./routes/Theater'));
 const DecisionLog = lazy(() => import('./routes/DecisionLog'));
 const EdgePlatform = lazy(() => import('./routes/EdgePlatform'));
@@ -37,6 +38,7 @@ function Screens() {
           <Route path="/lab" element={<FleetLab />} />
           <Route path="/labs/fleet" element={<Navigate to={`/lab${location.search}`} replace />} />
           <Route path="/graph" element={<GraphView />} />
+          <Route path="/sim" element={<Simulate />} />
           <Route path="/theater" element={<Theater />} />
           <Route path="/log" element={<DecisionLog />} />
           <Route path="/edge" element={<EdgePlatform />} />
