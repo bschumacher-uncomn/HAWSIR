@@ -252,6 +252,120 @@ def slide_team():
         "If you have questions, or a mission you want to see run through it, our emails are on the slide.")
 
 
+# ================================================================ 3. three terms
+def slide_terms():
+    s = Slide()
+    s.header('FIRST, THREE TERMS', 'MBSE, mission engineering and mission readiness', [
+        ('Engineers model systems and missions. Ships report readiness. Today a Sailor joins the two by hand.', 14, SOFT, False)])
+    terms = [
+        ('MBSE', 'Model-based systems engineering', BLUE,
+         'Design a system as one connected model instead of a stack of documents. Requirements, parts, interfaces '
+         'and behavior link to each other, so a change shows where it lands.',
+         'How is this system built, and what does it need to work?',
+         'Design and acquisition, usually in SysML',
+         'What USV-1, the MH-60S and the analyst each need: parts, maintenance, a qualified person'),
+        ('Mission engineering', 'Start from the mission, not the platform', VIOLET,
+         'Break a mission into a thread of tasks, systems, people and timing, and engineer across all of them so '
+         'the mission works, not just each system.',
+         'What has to happen, in what order, for this mission to succeed?',
+         'Planning and analysis; the DoD Mission Engineering Guide',
+         'Operation Open Passage: USV sonar and a helo survey in parallel, an analyst reviews both, report by 1800'),
+        ('Mission readiness', 'Can we do it, and when?', GREEN,
+         'Whether a unit can do its assigned missions, now and when they are needed. The Navy reports it in DRRS-N '
+         'against mission essential tasks, rated Y, Q or N.',
+         'Will this mission happen on time, and if not, why?',
+         'DRRS-N, CASREPs, supply status, the watchbill',
+         "MCM rated N: 1 h 15 m short, held up by the analyst's watch"),
+    ]
+    CW, CG, CY, CH = (12.15 - 2 * 0.35) / 3, 0.35, 1.9, 5.15
+    for i, (term, sub, color, definition, answers, lives, demo) in enumerate(terms):
+        x = 0.6 + i * (CW + CG)
+        s.card(x, CY, CW, CH, color)
+        s.label(x + 0.3, CY + 0.25, CW - 0.6, 0.5, [[(term, 21, color, True)]])
+        s.label(x + 0.3, CY + 0.78, CW - 0.6, 0.3, [[(sub, 12, MUTE, True)]])
+        s.label(x + 0.3, CY + 1.2, CW - 0.6, 1.4, [[(definition, 12.5, INK, False)]], anchor=MSO_ANCHOR.TOP)
+        rows = [('ANSWERS', answers), ('WHERE IT LIVES', lives), ('IN OUR DEMO', demo)]
+        for j, (k, v) in enumerate(rows):
+            ry = CY + 2.65 + j * 0.8
+            s.label(x + 0.3, ry, CW - 0.6, 0.22, [[(k, 9.5, color, True)]])
+            s.label(x + 0.3, ry + 0.22, CW - 0.6, 0.6, [[(v, 11.5, SOFT, False)]], anchor=MSO_ANCHOR.TOP)
+        if i < 2:
+            s.line(x + CW + 0.06, CY + CH / 2, x + CW + CG - 0.06, CY + CH / 2, CYAN, width=2)
+    s.notes(
+        "Three terms before the demo, because NAVIFI sits where they meet.\n\n"
+        "MBSE, model-based systems engineering, designs a system as one connected model instead of a stack of "
+        "documents, so you can see what each system needs to work: parts, maintenance, a qualified person.\n\n"
+        "Mission engineering starts from the mission instead of the platform. It breaks a mission into a thread of "
+        "tasks, systems, people and timing, and engineers across all of them. In our demo that is Operation Open "
+        "Passage: a USV and a helo survey the channel in parallel, an analyst reviews both, and the report is due "
+        "at 1800.\n\n"
+        "Mission readiness is whether a unit can do its missions, now and when they are needed. The Navy reports "
+        "it in DRRS-N against mission essential tasks as Y, Q or N. Today a Sailor joins these by hand: the "
+        "mission thread lives in a plan, readiness is reported system by system, and the whiteboard connects them.")
+
+
+# ================================================================ 4. the digital thread
+def slide_digital_thread():
+    s = Slide()
+    s.header('THE DIGITAL THREAD', 'How mission engineering threads into readiness', [
+        ('Each link points to the next, so a status change finds the mission it hits, and the answer traces back.', 14, SOFT, False)])
+    links = [
+        ('1  ·  MISSION', CYAN, 'Mine assessment', 'Thimble Shoal approach, due to the commander by 1800', 'From the tasking'),
+        ('2  ·  MISSION THREAD', VIOLET, 'Six lanes of tasks', 'Survey, review and report, with every handoff and its timing',
+         'From mission engineering'),
+        ('3  ·  SYSTEMS AND PEOPLE', BLUE, 'Its dependencies',
+         'USV-1, the MH-60S and the analyst, and the parts, upkeep or quals each needs', 'From the system models'),
+        ('4  ·  LIVE RECORDS', AMBER, "Today's status",
+         'CASREP, supply ETA and watchbill, read-only, as they change', 'From the ship'),
+        ('5  ·  READINESS', GREEN, 'MCM: N, −1 h 15 m', 'Controlled by OS1 Vega, with bounded options to recover',
+         'Y, Q or N, as DRRS-N rates it'),
+    ]
+    NW, NG, NY, NH = (12.15 - 4 * 0.3) / 5, 0.3, 2.2, 2.0
+    s.label(0.6, 1.85, 12.15, 0.28, [[('BUILT DOWN THE THREAD', 10.5, MUTE, True)]])
+    for i, (step, color, title, body, src) in enumerate(links):
+        x = 0.6 + i * (NW + NG)
+        s.box(x, NY, NW, NH, fill=HULL, line=color, line_w=1.5)
+        s.label(x + 0.18, NY + 0.15, NW - 0.36, 0.25, [[(step, 9.5, color, True)]])
+        s.label(x + 0.18, NY + 0.42, NW - 0.36, 0.35, [[(title, 13, INK, True)]])
+        s.label(x + 0.18, NY + 0.8, NW - 0.36, 0.8, [[(body, 10.5, SOFT, False)]], anchor=MSO_ANCHOR.TOP)
+        s.label(x + 0.18, NY + NH - 0.38, NW - 0.36, 0.25, [[(src, 9.5, MUTE, True)]])
+        if i < 4:
+            s.line(x + NW + 0.03, NY + NH / 2, x + NW + NG - 0.03, NY + NH / 2, CYAN, width=2)
+    s.line(12.7, NY + NH + 0.3, 0.65, NY + NH + 0.3, GREEN, width=1.5)
+    s.label(0.6, NY + NH + 0.38, 12.15, 0.3, [[(
+        'Traced back: every answer points to the task, the system and the record behind it', 11, GREEN, True)]],
+        align=PP_ALIGN.CENTER)
+
+    HW = (12.15 - 0.3) / 2
+    rows = [
+        ('TODAY', AMBER, 'The thread is a plan or a slide. Readiness is reported system by system. The watch joins '
+                         'them on a whiteboard, by hand, every time a report lands.'),
+        ('WITH NAVIFI', CYAN, 'The thread runs. Records attach to its nodes as they change, and readiness is computed '
+                              'per mission: Y, Q or N, the margin, and what controls it.'),
+    ]
+    for i, (k, color, text) in enumerate(rows):
+        x = 0.6 + i * (HW + 0.3)
+        s.card(x, 5.15, HW, 1.35, color)
+        s.label(x + 0.25, 5.35, HW - 0.5, 0.25, [[(k, 10.5, color, True)]])
+        s.label(x + 0.25, 5.65, HW - 0.5, 0.8, [[(text, 12.5, INK, False)]], anchor=MSO_ANCHOR.TOP)
+    s.label(0.6, 6.7, 12.15, 0.4, [[
+        ('Not yet:  ', 11, AMBER, True),
+        ('we write the thread and the system dependencies by hand. Reading them from the engineering model is the '
+         'next link.', 11, SOFT, False)]], align=PP_ALIGN.CENTER)
+    s.notes(
+        "This is how mission engineering threads into readiness, and it is the idea the rest of the demo runs on.\n\n"
+        "Start with the mission: a mine assessment of the Thimble Shoal approach, due by 1800. Mission engineering "
+        "turns it into a thread: six lanes of tasks and handoffs with their timing. The system models say what each "
+        "piece needs: USV-1, the MH-60S and the analyst each need parts, maintenance or a qualified person. The "
+        "ship's own records say where those stand right now. Put together, readiness comes out per mission: MCM "
+        "is N, an hour and fifteen minutes short, controlled by OS1 Vega's watch.\n\n"
+        "And it traces back. Every answer points to the task, the system and the record behind it.\n\n"
+        "Today that thread is broken: the mission plan sits in a model or a slide, readiness is reported system by "
+        "system, and a Sailor joins them on a whiteboard. NAVIFI makes the thread run.\n\n"
+        "What is not done yet: we write the thread and the dependencies by hand. Reading them straight from the "
+        "engineering model is the next link.")
+
+
 # ================================================================ 3. the question
 def slide_question():
     s = Slide()
@@ -648,7 +762,7 @@ def slide_platform_arch():
 def slide_ship_arch():
     """Slide 8's layout box for box, with everything that differs from the lab in amber."""
     s = Slide()
-    s.header('NAVIFI  ·  THEORETICAL SHIPBOARD DEPLOYMENT', 'The same stack aboard, air-gapped', [
+    s.header('NAVIFI  ·  THEORETICAL SHIPBOARD DEPLOYMENT', 'The same stack aboard, built for DDIL', [
         ('RHEL 9  ·  RKE2 Kubernetes  ·  Defense Unicorns UDS Core  ·  Zarf', 14, SOFT, False),
         ('      same as the lab', 14, MUTE, False),
     ])
@@ -664,10 +778,10 @@ def slide_ship_arch():
     lan = s.box(2.6, 2.0, 1.6, 1.6, fill=HULL, line=AMBER, line_w=1.25)
     s.text(lan, [
         [("Ship's LAN", 12, INK, True)],
-        [('No route to the internet', 10.5, AMBER, True)],
+        [('Runs with no shore link', 10.5, AMBER, True)],
         [('Admin tools: ship IT only', 10.5, SOFT, False)],
     ], spacing=3)
-    s.label(2.6, 3.75, 1.6, 0.5, [[('Off-ship: audit to shore only, none in EMCON', 10, AMBER, False)]], align=PP_ALIGN.CENTER)
+    s.label(2.6, 3.75, 1.6, 0.5, [[('Uses the link when it has one; nothing leaves in EMCON', 10, AMBER, False)]], align=PP_ALIGN.CENTER)
 
     NX, NW = 4.55, 3.9
     s.box(NX, TOP, NW, 4.55, fill=NODE, line=CYAN_DIM, radius=0.04, line_w=1.25)
@@ -710,8 +824,8 @@ def slide_ship_arch():
 
     RX, RW = 8.85, 3.9
     blocks = [
-        ('Cut off by design', CYAN, [
-            'No internet route; nothing downloads at sea',
+        ('Locked down aboard', CYAN, [
+            'Installed whole; nothing downloads at sea',
             'CAC sign-in through Keycloak',
             'Default-deny network policy and mTLS',
         ]),
@@ -753,9 +867,10 @@ def slide_ship_arch():
         "This is the same picture aboard ship. It is the design, not something we have deployed on a hull. "
         "Everything in amber is what changes from the lab cluster on the previous slide; everything else is the "
         "same software we ran this week.\n\n"
-        "Watchstanders reach NAVIFI over the ship's LAN with a CAC, through Keycloak. There is no route to the "
-        "internet and no load balancer: TLS ends at the Istio gateway. The only traffic that leaves the ship is "
-        "the decision log going ashore, and in EMCON nothing leaves at all.\n\n"
+        "It is built for DDIL: installed air-gapped, then it runs whatever the link is doing. Watchstanders reach "
+        "NAVIFI over the ship's LAN with a CAC, through Keycloak. It needs no shore link to run, and there is no "
+        "load balancer: TLS ends at the Istio gateway. When there is a link, the decision log goes ashore; in "
+        "EMCON nothing leaves at all.\n\n"
         "The rack runs RHEL 9 with the DISA STIG and FIPS mode, and RKE2 with the CIS profile across three edge "
         "nodes. UDS Core uses Iron Bank images. The optional AI narrator runs in the cluster, so it works with the "
         "link down too.\n\n"
@@ -1153,7 +1268,7 @@ def export_previews(pptx):
 def main():
     BUILD.mkdir(exist_ok=True)
     OUT.mkdir(exist_ok=True)
-    for build in (slide_title, slide_team, slide_question, slide_thread, slide_decides, slide_break, slide_missions,
+    for build in (slide_title, slide_team, slide_terms, slide_digital_thread, slide_question, slide_thread, slide_decides, slide_break, slide_missions,
                   slide_platform_built, slide_platform_arch, slide_ship_arch, slide_where,
                   slide_appendix, slide_a_data, slide_a_impact, slide_a_watch, slide_a_slack, slide_a_broke,
                   slide_a_domains):
