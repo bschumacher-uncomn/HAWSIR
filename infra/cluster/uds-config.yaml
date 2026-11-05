@@ -3,6 +3,11 @@
 # /etc/navifi-lab/lab.env) and the MinIO user that Loki and Velero share, whose
 # secret key is generated on the node.
 variables:
+  init:
+    # One registry pod. A second replica would mount the same volume, and under
+    # SELinux the volume is relabelled for the newest pod, which locks the
+    # older one out of its storage.
+    registry_hpa_enable: "false"
   core:
     velero_bucket_provider_url: http://minio.uds-storage.svc.cluster.local:9000
     velero_bucket: velero
