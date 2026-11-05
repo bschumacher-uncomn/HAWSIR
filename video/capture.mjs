@@ -14,6 +14,7 @@ const store = (js) => `(() => { const s = window.__navifi.getState(); ${js} })()
 const click = (re) => `[...document.querySelectorAll('button')].find((b) => ${re}.test(b.textContent))?.click()`;
 const APPROVE = click('/^\\s*approve\\s*$/i');
 const CONFIRM = click('/confirm approval/i');
+const MISSION_ROW = `[...document.querySelectorAll('button')].find((b) => /T-\\d/.test(b.textContent))?.click()`;
 
 /** Stills are 3840×2160 so the cut can push in without going soft. */
 const STILLS = [
@@ -28,6 +29,20 @@ const STILLS = [
   { name: 'edge_emcon', route: '/edge?scenario=mcm&reset', steps: [store("s.setLink('DENIED')"), 2500] },
   { name: 'evidence', route: '/evidence?scenario=mcm&reset', wait: 7000 },
   { name: 'log', route: '/log?scenario=mcm&reset&t=10', wait: 5000 },
+  { name: 'fleet_globe', route: '/labs/fleet', wait: 9000 },
+  { name: 'fleet_mission', route: '/labs/fleet', wait: 5000, steps: [MISSION_ROW, 3500] },
+  {
+    name: 'fleet_whatif', route: '/labs/fleet', wait: 5000,
+    steps: [click('/Suez Canal closed/'), 500, click('/Typhoon/'), 500, click('/AMC airlift/'), 3000],
+  },
+  { name: 'sim_mcm', route: '/sim?scenario=mcm&reset&t=10', wait: 10000 },
+  { name: 'sim_ddg', route: '/sim?scenario=ddg21&reset', wait: 10000 },
+  { name: 'sim_vls', route: '/sim?scenario=reload72&reset', wait: 10000 },
+  { name: 'sim_radar', route: '/sim?scenario=classic&reset', wait: 10000 },
+  { name: 'horizon_mcm', route: '/horizon?scenario=mcm&reset&t=10', wait: 7000 },
+  { name: 'horizon_ddg', route: '/horizon?scenario=ddg21&reset', wait: 7000 },
+  { name: 'theater_mcm', route: '/theater?scenario=mcm&reset&t=10', wait: 8000 },
+  { name: 'theater_ddg', route: '/theater?scenario=ddg21&reset', wait: 8000 },
 ];
 
 /**

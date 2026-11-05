@@ -1284,6 +1284,238 @@ def slide_domains():
         "The app still runs its own engine; wiring Connor's in is the next job. All scenario data is synthetic.")
 
 
+# ================================================================ appendix: the app, screen by screen
+def app_slide(kicker, title, subtitle, still, items, caption, step=1.22):
+    """One full app screenshot on the left, numbered callouts down the right."""
+    s = Slide()
+    s.header(kicker, title, [(subtitle, 14, SOFT, False)])
+    h = s.shot(still, 0.6, 1.85, 8.55, color=CYAN_DIM)
+    s.label(0.6, 1.85 + h + 0.08, 8.55, 0.3, [[(caption, 10.5, MUTE, False)]])
+    beats(s, 9.45, 1.9, 3.35, items, step=step, title_size=13, body_size=10.5)
+    return s
+
+
+def slide_appendix():
+    s = Slide()
+    s.header('APPENDIX', 'The app, screen by screen', [
+        ('Screenshots from the running app, for anyone who wants to look closer. All scenario data is synthetic.', 14, SOFT, False)])
+    screens = [
+        ('fleet_globe', 'Fleet picture', 'The whole fleet on one globe'),
+        ('fleet_whatif', 'Fleet what-if', 'Three disruptions at once'),
+        ('fleet_mission', 'Fleet drill-down', 'One mission, hull by hull'),
+        ('sim_ddg', 'Monte Carlo', '2,000 seeded futures'),
+        ('sim_radar', 'Monte Carlo', 'The radar repair, run 2,000 times'),
+        ('horizon_ddg', 'Readiness horizon', 'Deadlines before they hit'),
+        ('theater_ddg', 'Theater', 'Where the parts and people are'),
+        ('thread_vls', 'Other workflows', 'Four threads, one engine'),
+    ]
+    TW, G = (12.15 - 3 * 0.25) / 4, 0.25
+    for i, (still, name, what) in enumerate(screens):
+        x, y = 0.6 + (i % 4) * (TW + G), 1.95 + (i // 4) * 2.55
+        h = s.shot(still, x, y, TW, color=CYAN_DIM)
+        s.label(x, y + h + 0.1, TW, 0.25, [[(name.upper(), 10.5, CYAN, True)]])
+        s.label(x, y + h + 0.36, TW, 0.25, [[(what, 11.5, INK, False)]])
+    s.notes(
+        "The appendix is the app itself, screen by screen: the fleet picture and its what-if, a mission drill-down, "
+        "the Monte Carlo simulation on two scenarios, the readiness horizon, the theater map, and the other mission "
+        "threads that run on the same engine. Everything here is synthetic data.")
+
+
+def slide_fleet_globe():
+    s = app_slide('APPENDIX · FLEET PICTURE', 'The whole fleet on one globe',
+                  'A labs prototype: every mission, hull and inbound package, timed by the same engine.', 'fleet_globe', [
+        ('38 hulls, 150 packages',
+         'Twelve missions across six numbered fleets. Each mission ring takes its readiness color, and the list on the left runs worst first.', CYAN),
+        ('Every arc is a package',
+         'Parts, people and data moving toward a hull. Amber has under a day of slack; red breaks its mission.', AMBER),
+        ('Slack before it breaks',
+         'The right panel lists packages at risk, smallest slack first, and marks the ones on the critical chain.', RED),
+        ('Fast enough to explore',
+         'The engine re-times every package in a fraction of a second on a laptop, so a what-if answers instantly.', GREEN),
+    ], 'Fleet picture at rest, synthetic data. Drag to spin; click a mission or hull to drill in.')
+    s.notes(
+        "This is the fleet picture, a labs prototype on synthetic data. 38 hulls across six numbered fleets, 12 "
+        "missions and 150 inbound packages, all timed by the same engine as the single-ship screens.\n\n"
+        "Each mission ring takes its readiness color and the list on the left is worst first. Every arc is a "
+        "package moving toward a hull: amber has under a day of slack, red breaks its mission. The right panel "
+        "lists the packages at risk, smallest slack first.\n\n"
+        "The whole fleet re-times in a fraction of a second on a laptop, which is what makes the what-if on the "
+        "next slide feel instant.")
+
+
+def slide_fleet_whatif():
+    s = Slide()
+    s.header('APPENDIX · FLEET WHAT-IF', 'What if three things go wrong at once?', [
+        ('Toggle a disruption and see which missions break, and which ones redundancy saves.', 14, SOFT, False)])
+    h = s.shot('fleet_whatif', 0.6, 1.85, 7.4, color=CYAN_DIM)
+    s.label(0.6, 1.85 + h + 0.08, 7.4, 0.3, [[('AMC stand-down, Suez closed and a typhoon at Guam, all at once', 10.5, MUTE, False)]])
+    h2 = s.shot('fleet_whatif', 8.25, 1.85, 4.5, color=VIOLET, crop=(3040, 180, 3825, 840))
+    s.label(8.25, 1.85 + h2 + 0.08, 4.5, 0.3, [[('The what-if panel, zoomed in', 10.5, MUTE, False)]])
+    s.card(0.6, 6.35, 12.15, 0.75, VIOLET)
+    s.label(0.85, 6.5, 11.65, 0.55, [
+        [('Six missions drop to N.  ', 12.5, RED, True),
+         ('PROSPERITY GUARD holds: it has more hulls than it needs, so DDG-181 running late is absorbed. '
+          'Sandbox only; no record changes, and the what-if is logged.', 12, INK, False)]], anchor=MSO_ANCHOR.TOP)
+    s.notes(
+        "The fleet what-if. Here we turn on three disruptions at once: an AMC airlift stand-down, the Suez Canal "
+        "closed, and a typhoon closing Guam.\n\n"
+        "Every affected package is re-timed through the same engine. Six missions drop to N, and the panel names "
+        "the hull that now controls each one. PROSPERITY GUARD holds, because it needs fewer destroyers than it "
+        "has, so DDG-181 running late is absorbed by redundancy.\n\n"
+        "This is a sandbox: no authoritative record changes, and turning a what-if on or off is written to the "
+        "decision log.")
+
+
+def slide_fleet_mission():
+    s = Slide()
+    s.header('APPENDIX · FLEET DRILL-DOWN', 'One mission, hull by hull', [
+        ('CSG-14 on station in the Arabian Sea: what it needs, who supplies it, and what controls it.', 14, SOFT, False)])
+    h = s.shot('fleet_mission', 0.6, 1.85, 5.3, color=CYAN_DIM, crop=(900, 150, 3000, 2100))
+    s.shot('fleet_mission', 6.15, 1.85, h * 785 / 1500, color=AMBER, crop=(3040, 500, 3825, 2000))
+    beats(s, 9.0, 1.9, 3.8, [
+        ('Need 2 of 3, not 3 of 3',
+         'Air defense needs 2 of 3 ships. CG-183 is N, but the other two cover, so it is absorbed.', GREEN),
+        ('One controlling constraint',
+         'DDG-172 waiting on a SPY-1D amplifier by VERTREP from the oiler sets this mission at +12 h.', CYAN),
+        ('Slack on every package',
+         'Each inbound part and person shows how far it can slip before it breaks the mission.', AMBER),
+        ('Down to the hull',
+         'Click a hull for its capabilities and packages. Two hulls open their full watch floor.', VIOLET),
+    ], step=1.22, title_size=13, body_size=10.5)
+    s.notes(
+        "Clicking a mission flies the globe to it. CSG-14 is a carrier strike group on station in the Arabian Sea.\n\n"
+        "Requirements are counted the way the fleet counts them: air and missile defense needs two of three ships. "
+        "CG-183 is not ready, but the other two cover, so it is absorbed and doesn't drive the mission. What does "
+        "control it is DDG-172 waiting on a SPY-1D amplifier coming by VERTREP from the oiler, which puts the "
+        "mission at plus 12 hours, qualified.\n\n"
+        "Every inbound package shows its slack, and clicking a hull drills into its capabilities. Two of the hulls "
+        "open straight into their full single-ship watch floor.")
+
+
+def slide_mc_ddg():
+    s = app_slide('APPENDIX · MONTE CARLO', '2,000 seeded futures, not one guess',
+                  'USS Grace Hopper, 14 days out. Every uncertain input is drawn from a range and the whole graph re-runs.', 'sim_ddg', [
+        ('Readiness S-curves',
+         'The chance each capability is ready by any time. Five are solid; air and missile defense is the one at risk.', CYAN),
+        ('Controls across futures',
+         'FC1 Martinez controls air defense in most futures; the CFA part in about one in five.', AMBER),
+        ('Seeded and reproducible',
+         'Same seed, same answer, so the watch and a reviewer see identical results. Thousands of futures a second, in the browser.', GREEN),
+        ('Honest about its inputs',
+         'Ranges are planning assumptions widened for stale and missing data, not calibrated failure rates. The screen says so.', VIOLET),
+    ], 'Simulation screen, DDG readiness thread, synthetic data')
+    s.notes(
+        "The Monte Carlo screen. The deterministic engine gives one answer; this runs the same graph 2,000 times "
+        "with every uncertain input drawn from a range.\n\n"
+        "The S-curves show the chance each capability is ready by any given time. On Grace Hopper five capabilities "
+        "are solid and air and missile defense is the one at risk. Across futures FC1 Martinez controls it most "
+        "of the time and the CFA part about one time in five, so the fix isn't just chasing the part.\n\n"
+        "It is seeded, so the same seed always gives the same answer, and it runs in the browser at thousands of "
+        "futures a second. The ranges are planning assumptions, not calibrated failure rates, and the screen "
+        "says that in plain words.")
+
+
+def slide_mc_radar():
+    s = app_slide('APPENDIX · MONTE CARLO', 'The radar repair, run 2,000 times',
+                  "The same case as 'slack is not margin'. Across every future, the team controls and the part never does.", 'sim_radar', [
+        ('Margin is a spread',
+         'Most futures make 1800 with time to spare, and a real tail misses. The histogram shows how much and how often.', AMBER),
+        ('The team always controls',
+         'The qualified repair team sets readiness in all 2,000 runs. The replacement part sets it in none.', GREEN),
+        ('What moves the answer',
+         'The tornado pushes each input to the ends of its range. Only the team and the repair time move the margin.', CYAN),
+        ('One hour, tested',
+         'The deterministic answer is an hour of margin. The simulation shows how often that hour actually holds.', VIOLET),
+    ], 'Simulation screen, radar repair thread, synthetic data')
+    s.notes(
+        "The same simulation on the radar repair from the 'slack is not margin' slide.\n\n"
+        "Margin is a spread, not a number: most futures make 1800 with time to spare, and there is a real tail "
+        "that misses. Across all 2,000 runs the qualified repair team controls readiness every time and the "
+        "replacement part never does, which is the slack-versus-margin point shown statistically.\n\n"
+        "The tornado pushes each input to the ends of its range; only the team and the repair time move the "
+        "answer. The deterministic engine says an hour of margin, and this shows how often that hour holds.")
+
+
+def slide_horizon():
+    s = app_slide('APPENDIX · READINESS HORIZON', 'Deadlines before they hit',
+                  'Every capability against the voyage phases, with the next decisions in the order they come due.', 'horizon_ddg', [
+        ('Readiness vs phases',
+         'Each capability gets a projected-ready mark, its earlier predictions and a P10–P90 band over the voyage.', CYAN),
+        ('Act-by list',
+         'Soonest first: when a fly-on window closes, when an off-ship request has to go out.', AMBER),
+        ('Margin burn-down',
+         'How margin has moved as reports landed, against the line where Y drops to Q.', RED),
+        ('Data health',
+         'The age of the newest record from each feed, and every stale, assumed, conflicting or missing value.', GREEN),
+    ], 'Readiness horizon, DDG readiness thread, synthetic data')
+    s.notes(
+        "The readiness horizon is the look-ahead. Every capability is plotted against the voyage phases with a "
+        "projected-ready mark, its earlier predictions so you can see drift, and a P10 to P90 band from the "
+        "simulation.\n\n"
+        "The act-by list on the right is soonest first: when a fly-on window closes, when an off-ship request has "
+        "to go out to make a difference. Underneath are the margin burn-down and the data health panel, which shows "
+        "how old each feed is and counts every stale, assumed, conflicting or missing value the engine is using.")
+
+
+def slide_theater():
+    s = app_slide('APPENDIX · THEATER', 'Where the parts and people are',
+                  'Grace Hopper in Norfolk, 14 days before a BMD patrol in the eastern Med.', 'theater_ddg', [
+        ('Movements that matter',
+         'Every part, person and data file en route, with its ETA. FC1 Martinez rejoining from Dam Neck is the critical chain.', AMBER),
+        ('Phases need capabilities',
+         'Each voyage phase lists what it needs at its start, so a late part shows up as a phase at risk.', CYAN),
+        ('Radar coverage',
+         'SPY-1D Array B is down until D-5, and the map shows the blind sector it leaves. Notional.', RED),
+        ('Works in EMCON',
+         'An offline vector basemap with no tile server, so the picture holds with the link down.', GREEN),
+    ], 'Theater map, DDG readiness thread, synthetic data')
+    s.notes(
+        "The theater map puts the same graph on a chart. Grace Hopper is in Norfolk, 14 days before a BMD patrol "
+        "in the eastern Med.\n\n"
+        "Every movement feeding readiness is drawn with its ETA, and the critical chain stands out: FC1 Martinez "
+        "rejoining from Dam Neck. Each voyage phase lists the capabilities it needs at its start. The SPY-1D panel "
+        "is notional and shows the blind sector while Array B is down.\n\n"
+        "The basemap ships with the app. There is no tile server, so the map works in EMCON.")
+
+
+def slide_workflows():
+    s = Slide()
+    s.header('APPENDIX · OTHER WORKFLOWS', 'Four mission threads, one engine', [
+        ('The same engine and the same screens, from hours to weeks and from parts to people.', 14, SOFT, False)])
+    TW, G = (12.15 - 2 * 0.25) / 3, 0.25
+    threads = [
+        ('thread_ddg', AMBER, 'DDG READINESS · 21 DAYS', 'Grace Hopper before deployment',
+         'Air defense is Q at +4 d 10 h. FC1 Martinez, not the late part, controls it.'),
+        ('thread_vls', RED, 'VLS RELOAD · 72 HOURS', 'Mary G. Ross at Souda Bay',
+         'Air defense is N at −2 h. GMC Horvat on light duty controls the reload, not the delayed C-17.'),
+        ('thread_radar', GREEN, 'RADAR REPAIR · 10 HOURS', 'Grace Hopper surge tasking',
+         'Y at +1 h. The qualified team controls; the part has two hours of slack.'),
+    ]
+    for i, (still, color, name, ship, body) in enumerate(threads):
+        x = 0.6 + i * (TW + G)
+        h = s.shot(still, x, 1.95, TW, color=color)
+        s.label(x, 1.95 + h + 0.15, TW, 0.25, [[(name, 11, color, True)]])
+        s.label(x, 1.95 + h + 0.45, TW, 0.3, [[(ship, 13.5, INK, True)]])
+        s.label(x, 1.95 + h + 0.8, TW, 0.7, [[(body, 11, SOFT, False)]], anchor=MSO_ANCHOR.TOP)
+    s.card(0.6, 5.65, 12.15, 0.95, CYAN)
+    s.label(0.85, 5.82, 11.65, 0.7, [
+        [('The fourth is in the main deck: ', 12.5, CYAN, True),
+         ('mine countermeasures on Cape Charles, 12 hours. In every one, the thing that controls the mission '
+          'is not the thing everyone is chasing.', 12.5, INK, False)]], anchor=MSO_ANCHOR.TOP)
+    s.notes(
+        "The same engine and screens run four mission threads. DDG readiness is three weeks out: air defense is "
+        "qualified, and FC1 Martinez controls it rather than the late CFA part. The VLS reload is 72 hours at "
+        "Souda Bay: air defense is not ready by two hours, and GMC Horvat on light duty controls it, not the "
+        "delayed C-17. The radar repair is ten hours: ready with an hour of margin, the team controls and the part "
+        "has two hours of slack.\n\n"
+        "The fourth is the mine countermeasures thread from the main deck. In every one of them, the thing that "
+        "controls the mission is not the thing everyone is chasing.")
+
+
+APPENDIX = (slide_appendix, slide_fleet_globe, slide_fleet_whatif, slide_fleet_mission, slide_mc_ddg, slide_mc_radar,
+            slide_horizon, slide_theater, slide_workflows)
+
+
 def export_previews(pptx):
     soffice = shutil.which('soffice')
     if not soffice or not shutil.which('pdftoppm'):
@@ -1314,7 +1546,7 @@ def main():
         # getting it to the fleet
         slide_platform_built, slide_platform_arch, slide_ship_arch,
         slide_where,
-    )
+    ) + APPENDIX
     for build in slides:
         build()
     pptx = OUT / f'{NAME}.pptx'
