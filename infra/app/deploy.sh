@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Build NAVIFI from a git ref and deploy it to the lab cluster.
+# Build HAWSIR from a git ref and deploy it to the lab cluster.
 #
 #   infra/app/deploy.sh            # tip of the remote's default branch
 #   infra/app/deploy.sh <git-ref>  # any branch, tag or commit that has infra/app
 #
-# Builds the image on the node (the Dockerfile runs typecheck and tests first),
-# packages it with the repo's Helm chart as a Zarf package, and deploys it. Each
-# commit gets its own image tag, so a new commit always rolls the Deployment.
+# Builds the web and mission-api images on the node, packages them with the
+# repo's Helm chart and Postgres as a Zarf package, and deploys it. Each commit
+# gets its own image tag, so a new commit always rolls both Deployments.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,24 +26,29 @@ sha="$(git -C "$REPO" rev-parse --short=12 "$ref^{commit}")"
 src="$(mktemp -d)"
 trap 'rm -rf "$src"' EXIT
 git -C "$REPO" archive "$sha" | tar -x -C "$src"
-[[ -f "$src/infra/app/zarf.yaml" ]] || { echo "$ref predates infra/app; deploy a newer commit" >&2; exit 1; }
+[[ -f "$src/infra/app/zarf.yaml" && -d "$src/deploy/chart/hawsir" ]] \
+  || { echo "$ref predates the HAWSIR chart in infra/app; deploy a newer commit" >&2; exit 1; }
 
 tag="$(jq -r .version "$src/package.json")-$sha"
-image="ghcr.io/navifi/navifi:$tag"
+web="ghcr.io/uncomn/hawsir-web:$tag"
+api="ghcr.io/uncomn/hawsir-api:$tag"
 
-echo "==> Building $image from $ref"
-docker build --network host --tag "$image" "$src"
+echo "==> Building $web and $api from $ref"
+docker build --network host --tag "$web" "$src"
+docker build --network host --file "$src/mission-api/Dockerfile" --tag "$api" "$src"
 
 echo "==> Packaging"
 uds zarf package create "$src/infra/app" --set IMAGE_TAG="$tag" --output "$src" --confirm
 
-echo "==> Deploying to navifi.$DOMAIN"
-uds zarf package deploy "$src/zarf-package-navifi-lab-amd64-$tag.tar.zst" \
+echo "==> Deploying to hawsir.$DOMAIN"
+uds zarf package deploy "$src/zarf-package-hawsir-lab-amd64-$tag.tar.zst" \
   --set-variables DOMAIN="$DOMAIN" --confirm
 
 # Deployed images live in the Zarf registry; local copies of old builds only use disk.
-docker images ghcr.io/navifi/navifi --format '{{.Tag}}' | grep -vx "$tag" \
-  | xargs -r -I{} docker image rm ghcr.io/navifi/navifi:{} >/dev/null || true
+for repo in ghcr.io/uncomn/hawsir-web ghcr.io/uncomn/hawsir-api; do
+  docker images "$repo" --format '{{.Tag}}' | grep -vx "$tag" \
+    | xargs -r -I{} docker image rm "$repo:{}" >/dev/null || true
+done
 
 echo "==> Deployed $tag"
-echo "    https://navifi.$DOMAIN"
+echo "    https://hawsir.$DOMAIN"

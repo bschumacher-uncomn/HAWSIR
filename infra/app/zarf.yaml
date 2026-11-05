@@ -1,45 +1,54 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/v0.89.0/zarf.schema.json
 #
-# NAVIFI for the lab cluster, built from one git commit by infra/app/deploy.sh.
+# HAWSIR for the lab cluster, built from one git commit by infra/app/deploy.sh.
 # Same Helm chart as the ship package (../../zarf.yaml), with lab values.
 kind: ZarfPackageConfig
 metadata:
-  name: navifi-lab
-  description: NAVIFI on the lab UDS cluster, open to anyone with the URL (SSO off)
+  name: hawsir-lab
+  description: HAWSIR on the lab UDS cluster, open to anyone with the URL (SSO off)
   version: "###ZARF_PKG_TMPL_IMAGE_TAG###"
   architecture: amd64
 
 variables:
   - name: DOMAIN
-    description: UDS Core domain. NAVIFI is served at navifi.<domain>.
+    description: UDS Core domain. HAWSIR is served at hawsir.<domain>.
     default: uds.dev
 
 constants:
-  # Fixed at package create time, so a package always deploys the image it carries.
+  # Fixed at package create time, so a package always deploys the images it carries.
   - name: IMAGE_TAG
     value: "###ZARF_PKG_TMPL_IMAGE_TAG###"
 
 components:
-  - name: navifi
-    description: Engine, watch floor UI and audit edge copy
+  - name: hawsir
+    description: Web app, mission-api (engine, views, decision log) and this node's Postgres
     required: true
     charts:
-      - name: navifi
-        namespace: navifi
-        localPath: ../../deploy/chart/navifi
+      - name: hawsir
+        namespace: hawsir
+        localPath: ../../deploy/chart/hawsir
         valuesFiles:
           - values.yaml
     images:
-      # Built on the node and not pushed anywhere; Zarf takes it from the local
+      # Built on the node and not pushed anywhere; Zarf takes them from the local
       # Docker daemon when the registry lookup fails.
-      - ghcr.io/navifi/navifi:###ZARF_PKG_TMPL_IMAGE_TAG###
+      - ghcr.io/uncomn/hawsir-web:###ZARF_PKG_TMPL_IMAGE_TAG###
+      - ghcr.io/uncomn/hawsir-api:###ZARF_PKG_TMPL_IMAGE_TAG###
+      - postgres:16-alpine
     actions:
       onDeploy:
         after:
-          - description: Wait for the edge node to report healthy
+          - description: Wait for mission-api to report healthy (chains re-verified)
             wait:
               cluster:
                 kind: Deployment
-                name: navifi
-                namespace: navifi
+                name: hawsir-api
+                namespace: hawsir
+                condition: Available
+          - description: Wait for the web app
+            wait:
+              cluster:
+                kind: Deployment
+                name: hawsir-web
+                namespace: hawsir
                 condition: Available

@@ -62,6 +62,7 @@ resource "aws_lb_target_group" "gateway" {
 # Listener rules, first match wins:
 #
 #   priority  host                 source           action
+#   2         retired_hosts        anyone           301 to the first public host
 #   3         public_hosts         anyone           forward to the tenant gateway
 #   4         *.admin.<domain>     operator_cidrs   forward to the admin gateway
 #   5         *.<domain>           operator_cidrs   forward to the tenant gateway
@@ -71,6 +72,30 @@ resource "aws_lb_target_group" "gateway" {
 # host, and the lab's own rule (priority 10, *.demo.uncomn.ai) matches all of
 # them. Every rule here therefore has a priority below 10, so the ALB checks it
 # before the lab's rule.
+
+resource "aws_lb_listener_rule" "retired" {
+  count        = length(var.retired_hosts) > 0 ? 1 : 0
+  listener_arn = data.aws_lb_listener.https.arn
+  priority     = 2
+
+  condition {
+    host_header {
+      values = [for host in var.retired_hosts : "${host}.${var.domain}"]
+    }
+  }
+
+  action {
+    type = "redirect"
+    redirect {
+      host        = "${var.public_hosts[0]}.${var.domain}"
+      path        = "/#{path}"
+      query       = "#{query}"
+      protocol    = "HTTPS"
+      port        = "443"
+      status_code = "HTTP_301"
+    }
+  }
+}
 
 resource "aws_lb_listener_rule" "public" {
   listener_arn = data.aws_lb_listener.https.arn

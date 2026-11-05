@@ -1,26 +1,26 @@
-# NAVIFI lab cluster
+# HAWSIR lab cluster
 
-The shipboard deployment from [docs/DEPLOY.md](../docs/DEPLOY.md), rehearsed ashore. NAVIFI runs on one EC2 node in the bd-infra lab account, on the stack it uses aboard: RHEL 9, RKE2 and Defense Unicorns' UDS Core, packaged with Zarf:
+The shipboard deployment from [docs/DEPLOY.md](../docs/DEPLOY.md), rehearsed ashore. HAWSIR runs on one EC2 node in the bd-infra lab account, on the stack it uses aboard: RHEL 9, RKE2 and Defense Unicorns' UDS Core, packaged with Zarf:
 
-**https://navifi.uds.demo.uncomn.ai**, and the deck at **https://slides.uds.demo.uncomn.ai**
+**https://hawsir.uds.demo.uncomn.ai**, and the deck at **https://slides.uds.demo.uncomn.ai**. The app's old address, https://navifi.uds.demo.uncomn.ai, redirects to the new one.
 
-Terraform creates the node and its place behind the lab's existing load balancer. Scripts on the node install RKE2, install UDS Core, and build and deploy NAVIFI and the deck from any git commit.
+Terraform creates the node and its place behind the lab's existing load balancer. Scripts on the node install RKE2, install UDS Core, and build and deploy HAWSIR and the deck from any git commit.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  user([Anyone]) -->|"HTTPS navifi. and slides.uds.demo.uncomn.ai"| alb
+  user([Anyone]) -->|"HTTPS hawsir. and slides.uds.demo.uncomn.ai"| alb
   opr([Operator IP]) -->|"HTTPS any other host under<br/>uds.demo.uncomn.ai"| alb
   ssm([Operator]) -->|SSM session, no SSH| node
 
   subgraph aws["bd-lab VPC (existing)"]
-    alb["ALB bd-lab (existing)<br/>TLS via this stack's ACM cert<br/>rules 3-6 added by this stack"]
+    alb["ALB bd-lab (existing)<br/>TLS via this stack's ACM cert<br/>rules 2-6 added by this stack"]
     subgraph node["EC2 m7i.2xlarge · RHEL 9 · SELinux enforcing"]
       subgraph rke2["RKE2 v1.36"]
         tgw["Istio tenant gateway<br/>NodePort 30080"]
         agw["Istio admin gateway<br/>NodePort 30081"]
-        app["navifi namespace<br/>NAVIFI + audit PVC"]
+        app["hawsir namespace<br/>web · mission-api · Postgres PVC"]
         deck["slides namespace<br/>the deck, nginx"]
         core["UDS Core 1.14<br/>Pepr policy · Istio ambient mTLS · Keycloak<br/>Falco · Vector/Loki · Prometheus/Grafana · Velero"]
         zarf["Zarf registry + agent"]
@@ -29,13 +29,13 @@ flowchart LR
     end
   end
 
-  alb -->|"rule 3: NAVIFI and slides, anyone"| tgw --> app
+  alb -->|"rule 3: HAWSIR and slides, anyone"| tgw --> app
   tgw --> deck
   alb -->|"rule 5: Keycloak sign-in, portal (operator IPs)"| tgw --> core
   alb -->|"rule 4: Grafana, Keycloak admin (operator IPs)"| agw --> core
 ```
 
-Only NAVIFI and the slides are public (`public_hosts`). Every other host under the domain, on either gateway, is forwarded only for source addresses in `operator_cidrs` (empty by default), and everyone else gets a 404 from the ALB (rule 6).
+Only HAWSIR and the slides are public (`public_hosts`). The old `navifi` host gets a 301 to `hawsir` from the ALB itself (`retired_hosts`, rule 2), path and query intact. Every other host under the domain, on either gateway, is forwarded only for source addresses in `operator_cidrs` (empty by default), and everyone else gets a 404 from the ALB (rule 6).
 
 The lab already had a VPC, an ALB and a wildcard certificate for `*.demo.uncomn.ai`. This stack adds a node to that VPC instead of building a second network, because the lab's deploy role can create only the one load balancer named `bd-lab`. The bd-lab stack itself is never modified. This stack only adds to it: listener rules, a listener certificate for the two new wildcards, and egress rules on the ALB security group.
 
@@ -52,7 +52,7 @@ The lab already had a VPC, an ALB and a wildcard certificate for `*.demo.uncomn.
 | `cluster/uds-bundle.yaml` | Platform bundle: prereqs, Zarf init v0.89.0, UDS Core 1.14.3, with the lab overrides |
 | `cluster/uds-config.yaml` | Non-secret bundle settings: Velero's MinIO endpoint and bucket, one Zarf registry replica |
 | `cluster/install-core.sh` | Generates the node's secrets, then builds and deploys the platform bundle |
-| `app/` | Zarf package for NAVIFI (same Helm chart as the ship package) and `deploy.sh` |
+| `app/` | Zarf package for HAWSIR (web, mission-api and Postgres, from the ship package's Helm chart) and `deploy.sh` |
 | `slides/` | Zarf package and `deploy.sh` for the deck: a static viewer for `docs/slides/`, served by nginx |
 
 ## Lab versus ship
@@ -61,10 +61,10 @@ The lab keeps the ship's software stack and packaging and changes only what an A
 
 | | Ship ([DEPLOY.md](../docs/DEPLOY.md), [ARCHITECTURE.md](../docs/ARCHITECTURE.md)) | Lab (this folder) |
 |---|---|---|
-| Delivery | One air-gapped UDS bundle carrying Zarf init, UDS Core and NAVIFI | Platform bundle, then NAVIFI built from a git commit on the node |
+| Delivery | One air-gapped UDS bundle carrying Zarf init, UDS Core and HAWSIR | Platform bundle, then HAWSIR built from a git commit on the node |
 | Versions | Root `uds-bundle.yaml`: Zarf init v0.41.0, UDS Core 0.29.1, registry1 flavor (Iron Bank images) | Zarf init v0.89.0, UDS Core 1.14.3, upstream flavor |
 | TLS | Terminated at the Istio gateways | ALB terminates with ACM; gateways serve HTTP on NodePorts only the ALB can reach. Pod-to-gateway HTTPS uses a CA generated on the node |
-| Sign-in | Keycloak SSO in front of NAVIFI | Off, so judges can open the demo without an account |
+| Sign-in | Keycloak SSO in front of HAWSIR | Off, so anyone with the link can open the demo without an account |
 | Host baseline | RHEL 9 with DISA STIG, FIPS and SELinux; RKE2 CIS profile | RHEL 9 with SELinux enforcing; STIG, FIPS and CIS not applied |
 
 ## Deploy
@@ -109,13 +109,13 @@ sudo infra/cluster/install-rke2.sh
 infra/cluster/install-core.sh
 ```
 
-**6. Build and deploy NAVIFI** (about 5 minutes). This builds the tip of the default branch; pass a branch, tag or commit to deploy something else.
+**6. Build and deploy HAWSIR** (about 8 minutes). This builds the tip of the default branch; pass a branch, tag or commit to deploy something else.
 
 ```bash
 infra/app/deploy.sh
 ```
 
-To ship a new commit later, run `infra/app/deploy.sh` again from `~/navifi`. It fetches first, and every commit gets its own image tag, so the Deployment always rolls.
+To ship a new commit later, run `infra/app/deploy.sh` again from `~/navifi`. It fetches first, and every commit gets its own image tag, so both Deployments always roll. Postgres keeps its volume, so the fact and decision logs survive a redeploy.
 
 **7. Publish the deck** (about 2 minutes). Serves whatever is committed in `docs/slides/`: run `python3 deck/build_week.py`, copy the `.pptx`, `.pdf` and `.notes.json` from `deck/out/` into `docs/slides/`, commit, then:
 
@@ -130,38 +130,39 @@ The viewer renders each PDF page to an image at build time. Arrow keys move thro
 From anywhere:
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://navifi.uds.demo.uncomn.ai/api/health   # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://hawsir.uds.demo.uncomn.ai/api/health   # 200
 curl -s -o /dev/null -w '%{http_code}\n' https://slides.uds.demo.uncomn.ai/notes.json   # 200
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' https://navifi.uds.demo.uncomn.ai/   # 301 to hawsir
 curl -s -o /dev/null -w '%{http_code}\n' https://grafana.admin.uds.demo.uncomn.ai/      # 404 unless your IP is in operator_cidrs
 ```
 
 On the node:
 
 ```bash
-kubectl get packages.uds.dev -A   # every UDS Package, NAVIFI's included, is Ready
+kubectl get packages.uds.dev -A   # every UDS Package, HAWSIR's included, is Ready
 kubectl get pods -A               # all Running, apart from RKE2's completed install jobs
 ```
 
-## How NAVIFI gets deployed
+## How HAWSIR gets deployed
 
-`deploy.sh` exports the commit with `git archive`, builds the image with the repo's Dockerfile (which runs typecheck and the engine tests before it builds), and tags it `<version>-<commit>`. `uds zarf package create` wraps that image and `deploy/chart/navifi` into a Zarf package with an SBOM, taking the image from the local Docker daemon because it was never pushed to a registry. `uds zarf package deploy` then pushes the image into the in-cluster Zarf registry and installs the chart.
+`deploy.sh` exports the commit with `git archive` and builds two images from it, both tagged `<version>-<commit>`: the web app (the root `Dockerfile`: the UI served by unprivileged nginx, which proxies `/api` to mission-api) and mission-api (`mission-api/Dockerfile`: the engine bundled into the API, the only thing that touches the database). `uds zarf package create` wraps them, `postgres:16-alpine` and `deploy/chart/hawsir` into a Zarf package with SBOMs, taking the two built images from the local Docker daemon because they were never pushed to a registry. `uds zarf package deploy` then pushes the images into the in-cluster Zarf registry and installs the chart.
 
-The chart emits a UDS `Package` resource. From it, the UDS operator exposes `navifi.<domain>` on the tenant gateway, generates the namespace's network policies (deny by default, then allow the gateway route, Prometheus scraping and traffic inside the namespace), and registers the Prometheus monitor on `/api/metrics`.
+The chart emits a UDS `Package` resource. From it, the UDS operator exposes `hawsir.<domain>` on the tenant gateway, generates the namespace's network policies (deny by default, then allow the gateway route, Prometheus scraping and traffic inside the namespace), and registers the Prometheus monitor on mission-api's `/api/metrics`. Postgres gets its volume from the local-path StorageClass, and its password is generated into a Secret at first install and kept across upgrades.
 
 ## Security
 
 - **No SSH and no key pair.** The only way onto the node is an SSM session, authenticated by IAM and recorded in CloudTrail.
 - **One inbound path.** The node's security group admits only the lab ALB's security group, and only on the two gateway HTTP ports and two health check ports.
-- **Only NAVIFI is public.** Keycloak sign-in, the UDS portal, Grafana and the Keycloak admin console answer 404 unless the request comes from a CIDR in `operator_cidrs`.
+- **Only HAWSIR and the deck are public.** Keycloak sign-in, the UDS portal, Grafana and the Keycloak admin console answer 404 unless the request comes from a CIDR in `operator_cidrs`.
 - **Pods on the pod network cannot use the node's IAM role.** Instance metadata requires IMDSv2 with a hop limit of 1, which only the host network can satisfy. The role has only AWS's `AmazonSSMManagedInstanceCore` policy and carries the account's mandatory permissions boundary.
 - **TLS at the edge.** The ALB terminates TLS with an ACM certificate. The ALB-to-node hop is plain HTTP inside the VPC, on ports nothing else can reach. Inside the cluster, UDS Core routes pods' requests for the gateway hostnames (Grafana signing in through Keycloak, for one) to each gateway's HTTPS port, which serves a certificate from a CA generated on the node and trusted through UDS Core's cluster trust bundle.
-- **UDS Core enforcement** applies to NAVIFI like any other workload: Pepr admission policies (non-root, no privilege escalation, dropped capabilities), Istio ambient mTLS, network policies generated from each app's `Package`, Falco runtime detection, and central logs and metrics.
+- **UDS Core enforcement** applies to HAWSIR like any other workload: Pepr admission policies (non-root, no privilege escalation, dropped capabilities), Istio ambient mTLS, network policies generated from each app's `Package`, Falco runtime detection, and central logs and metrics.
 - **Storage is fenced too.** The storage prerequisites deploy before UDS Core and are exempt from its admission policies, so MinIO carries its own network policy that admits only Loki, Velero and MinIO's own bucket setup job. In the other direction, Loki and Velero may reach only MinIO and the Kubernetes API, where UDS Core's default lets their storage traffic go anywhere.
-- **Supply chain.** Zarf init and UDS Core are verified with Sigstore keyless signatures against their release workflows when the bundle is built. The RKE2 installer is fetched from its release tag and checked against a pinned SHA-256, and it installs Rancher's GPG-signed RPMs. The UDS CLI download is checked against a pinned SHA-256. Every NAVIFI package carries a Syft SBOM.
+- **Supply chain.** Zarf init and UDS Core are verified with Sigstore keyless signatures against their release workflows when the bundle is built. The RKE2 installer is fetched from its release tag and checked against a pinned SHA-256, and it installs Rancher's GPG-signed RPMs. The UDS CLI download is checked against a pinned SHA-256. Every HAWSIR package carries Syft SBOMs for its images.
 - **Secrets stay on the node.** The MinIO credentials and the gateway CA and key are generated on first install under `~/.config/navifi-lab` (readable only by ec2-user). They never enter git or Terraform state.
 - **Docker is build-only.** It runs with no default bridge and no iptables rules, so it cannot interfere with Kubernetes networking.
 
-SSO is off for NAVIFI in the lab on purpose, so judges can open the demo without an account. The ship package keeps it on (`uds.sso: true` in `deploy/values/zarf-values.yaml`).
+SSO is off for HAWSIR in the lab on purpose, so anyone with the link can open the demo without an account. With nothing authenticating users, the lab also sets `node.trustIdentityHeaders: false`, so mission-api records decisions against its demo actor instead of whatever identity a request claims. The ship package keeps SSO on (`uds.sso: true` in `deploy/values/zarf-values.yaml`).
 
 ## Sizing
 

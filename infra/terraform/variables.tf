@@ -24,12 +24,23 @@ variable "domain" {
 variable "public_hosts" {
   description = "Hosts on the tenant gateway that anyone may reach, as <host>.<domain>. Must match the hosts the apps expose in their UDS Package."
   type        = list(string)
-  default     = ["navifi", "slides"]
+  default     = ["hawsir", "slides"]
 
   validation {
     # An ALB rule takes at most five condition values.
     condition     = length(var.public_hosts) >= 1 && length(var.public_hosts) <= 5
     error_message = "Give between 1 and 5 public hosts."
+  }
+}
+
+variable "retired_hosts" {
+  description = "Old hostnames that redirect to the first public host, path and query intact, so earlier links keep working."
+  type        = list(string)
+  default     = ["navifi"]
+
+  validation {
+    condition     = length(var.retired_hosts) <= 5
+    error_message = "Give at most 5 retired hosts."
   }
 }
 

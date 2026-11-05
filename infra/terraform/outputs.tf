@@ -2,8 +2,8 @@ output "instance_id" {
   value = aws_instance.node.id
 }
 
-output "navifi_url" {
-  value = "https://navifi.${var.domain}"
+output "app_url" {
+  value = "https://${var.public_hosts[0]}.${var.domain}"
 }
 
 output "operator_urls" {

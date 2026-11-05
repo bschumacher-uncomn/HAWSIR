@@ -1,10 +1,18 @@
-# NAVIFI chart values for the lab cluster. Differences from the ship package
+# HAWSIR chart values for the lab cluster. Differences from the ship package
 # (deploy/values/zarf-values.yaml): SSO is off so anyone with the URL can open
-# the demo, and the image tag is the commit being deployed.
+# the demo, the images are the commit being deployed, and the node runs standalone.
 domain: "###ZARF_VAR_DOMAIN###"
 
-image:
-  tag: "###ZARF_CONST_IMAGE_TAG###"
+images:
+  web: { repository: ghcr.io/uncomn/hawsir-web, tag: "###ZARF_CONST_IMAGE_TAG###" }
+  api: { repository: ghcr.io/uncomn/hawsir-api, tag: "###ZARF_CONST_IMAGE_TAG###" }
+
+node:
+  kind: ship
+  peerUrl: ""
+  # Nothing authenticates the user with SSO off, so identity headers are not
+  # trusted and decisions are recorded against the API's demo actor.
+  trustIdentityHeaders: false
 
 uds:
   enabled: true
