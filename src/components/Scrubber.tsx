@@ -1,5 +1,5 @@
 import { History, Pause, Play, Radio } from 'lucide-react';
-import { fmtT } from '@/engine/time';
+import { fmtT } from '@/lib/time';
 import { useEngine } from '@/state/engine';
 import { useStore } from '@/state/store';
 import { Btn } from './ui';

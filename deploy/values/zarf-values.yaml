@@ -1,6 +1,10 @@
 domain: "###ZARF_VAR_DOMAIN###"
-persistence:
-  size: "###ZARF_VAR_AUDIT_STORAGE###"
+node:
+  kind: "###ZARF_VAR_NODE_KIND###"
+  ship: "###ZARF_VAR_NODE_SHIP###"
+  peerUrl: "###ZARF_VAR_PEER_URL###"
+postgres:
+  storage: "###ZARF_VAR_DATA_STORAGE###"
 uds:
   enabled: true
   sso: true

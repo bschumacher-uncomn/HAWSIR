@@ -1,52 +1,62 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/main/zarf.schema.json
 kind: ZarfPackageConfig
 metadata:
-  name: navifi
-  description: NAVIFI mission consequence engine for shipboard RKE2 + UDS Core (air-gapped)
-  version: 0.10.0
-  url: https://github.com/navifi/navifi
+  name: hawsir
+  description: HAWSIR mission consequence engine for shipboard RKE2 + UDS Core (air-gapped)
+  version: 0.11.0
   architecture: amd64
 
 variables:
   - name: DOMAIN
     description: UDS tenant domain aboard the hull
     default: uds.dev
-  - name: AUDIT_STORAGE
-    description: Size of the append-only audit volume
-    default: 2Gi
+  - name: NODE_KIND
+    description: ship or shore
+    default: ship
+  - name: NODE_SHIP
+    description: The hull this node runs on (ship nodes)
+    default: ddgB
+  - name: PEER_URL
+    description: Shore mission-api reached over the data link (ship nodes; blank = standalone)
+    default: ""
+  - name: DATA_STORAGE
+    description: Size of this node's Postgres volume (fact and decision logs)
+    default: 5Gi
 
 components:
-  - name: navifi
-    description: Engine, watch floor UI and audit edge copy
+  - name: hawsir
+    description: Web app, mission-api (engine, views, sync) and this node's Postgres
     required: true
     charts:
-      - name: navifi
-        namespace: navifi
-        version: 0.10.0
-        localPath: deploy/chart/navifi
+      - name: hawsir
+        namespace: hawsir
+        version: 0.11.0
+        localPath: deploy/chart/hawsir
         valuesFiles:
           - deploy/values/zarf-values.yaml
     images:
-      - ghcr.io/navifi/navifi:0.10.0
+      - ghcr.io/uncomn/hawsir-web:0.11.0
+      - ghcr.io/uncomn/hawsir-api:0.11.0
+      - postgres:16-alpine
     actions:
       onDeploy:
         after:
-          - description: Wait for the edge node to report healthy
+          - description: Wait for mission-api to report healthy (chains re-verified)
             wait:
               cluster:
                 kind: Deployment
-                name: navifi
-                namespace: navifi
+                name: hawsir-api
+                namespace: hawsir
                 condition: Available
 
   - name: narrator
     description: Optional in-cluster narrator (explanations only, never in the calculation path)
     required: false
     charts:
-      - name: navifi-narrator
-        namespace: navifi
-        version: 0.10.0
-        localPath: deploy/chart/navifi
+      - name: hawsir-narrator
+        namespace: hawsir
+        version: 0.11.0
+        localPath: deploy/chart/hawsir
         valuesFiles:
           - deploy/values/zarf-narrator-values.yaml
     images:
@@ -55,7 +65,7 @@ components:
       # Model weights ride inside the package so nothing is fetched at sea.
       - source: models/qwen2.5-3b-instruct
         target:
-          namespace: navifi
+          namespace: hawsir
           selector: app.kubernetes.io/name=vllm
           container: vllm
           path: /models

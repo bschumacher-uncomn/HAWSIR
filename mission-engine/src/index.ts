@@ -20,5 +20,6 @@ export * from './data/decisions';
 export * from './packs/pack';
 export { airliftPack, buildAirlift, rangeCheckNode, AIRCRAFT, type AirliftModel, type AirliftLeg } from './packs/airlift';
 export { navalPack } from './packs/naval';
+export { positionAt } from './packs/naval/model';
 export type * from './packs/naval/model';
 export * from './session';

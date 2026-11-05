@@ -1,14 +1,15 @@
 import { motion } from 'motion/react';
 import { useMemo } from 'react';
 import { MousePointerClick, RotateCcw } from 'lucide-react';
-import { affectedCapabilities, consequenceCurve, isShiftable, type SlackResult } from '@/engine';
-import { fmtDur, fmtT } from '@/engine/time';
+import type { SlackResult } from '@/api/types';
+import { affectedCapabilities } from '@/lib/graph';
+import { fmtDur, fmtT } from '@/lib/time';
+import { useNodeAnalysis } from '@/state/analysis';
 import { useEngine } from '@/state/engine';
 import { useStore } from '@/state/store';
-import { Btn, FlagBadge, Panel, SourceChip, StatusBadge, Ticker } from '@/components/ui';
+import { Btn, FlagBadge, MarginValue, Panel, SourceChip, StatusBadge } from '@/components/ui';
 import { DOMAIN_COLOR, STATUS_COLOR } from '@/lib/util';
 import { CurveChart } from './CurveChart';
-import { useBaseWithout } from './hooks';
 
 /** `slackFor` searches at most 30 days of slip. */
 const SEARCH_CAP = 24 * 30;
@@ -52,7 +53,7 @@ function SlipBudget({ s, shift, code }: { s: SlackResult; shift: number; code: s
       </div>
       <div className="mt-1.5 grid grid-cols-3 gap-2 font-mono text-[10px]">
         <div>
-          <div className="text-calc">{s.unbounded ? '∞' : `+${fmtDur(s.noImpact)}`}</div>
+          <div className="text-calc">{s.unbounded ? 'no limit' : `+${fmtDur(s.noImpact)}`}</div>
           <div className="text-mute">upstream slack</div>
         </div>
         <div className="text-center">
@@ -73,9 +74,7 @@ export function Inspector({ nodeId, slack }: { nodeId: string | null; slack: Rec
   const shifts = useStore((s) => s.shifts);
   const setShift = useStore((s) => s.setShift);
   const clearShifts = useStore((s) => s.clearShifts);
-  const log = useStore((s) => s.log);
   const selectCap = useStore((s) => s.selectCap);
-  const base = useBaseWithout(nodeId);
   const n = nodeId ? nodes[nodeId] : undefined;
   const r = nodeId ? result.nodes[nodeId] : undefined;
 
@@ -86,18 +85,14 @@ export function Inspector({ nodeId, slack }: { nodeId: string | null; slack: Rec
   }, [nodeId, n, nodes, cap]);
   const target = result.capabilities.find((c) => c.id === targetId);
   const hours = scenario.timeScale === 'hours';
-  const range: [number, number] = hours ? [-2, 6] : [-24, 24 * 7];
+  const range: [number, number] = hours ? [-2, 12] : [-24, 24 * 7];
   const step = hours ? 0.25 : 1;
   const shift = nodeId ? (shifts[nodeId] ?? 0) : 0;
-  const shiftable = isShiftable(n);
-
-  const curve = useMemo(
-    () => (nodeId && targetId && shiftable ? consequenceCurve(scenario, base, at, nodeId, targetId, range, 160) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [base, nodeId, targetId, shiftable, at, scenario],
-  );
-  const baseMargin = curve.length ? curve.reduce((b, p) => (Math.abs(p.delta) < Math.abs(b.delta) ? p : b), curve[0]).margin : undefined;
-  const s = nodeId ? slack[nodeId] : undefined;
+  const shiftable = !!n?.shiftable;
+  const na = useNodeAnalysis(shiftable ? nodeId : null, targetId);
+  const curve = na?.curve ?? [];
+  const baseMargin = curve.length ? curve[0].margin : undefined;
+  const s = nodeId ? (slack[nodeId] ?? na?.slack) : undefined;
 
   if (!n || !r) {
     return (
@@ -116,9 +111,6 @@ export function Inspector({ nodeId, slack }: { nodeId: string | null; slack: Rec
     .filter(Boolean);
   const domainColor = DOMAIN_COLOR[n.domain] ?? '#38bdf8';
   const onSlide = (v: number) => setShift(n.id, v);
-  const commitLog = () => {
-    if (shift) log('WATCHSTANDER', 'WHAT_IF', `What-if: ${n.label} ${fmtDur(shift, { signed: true })} (sandbox only)`, { nodeId: n.id, shift });
-  };
 
   return (
     <Panel
@@ -153,7 +145,6 @@ export function Inspector({ nodeId, slack }: { nodeId: string | null; slack: Rec
             {(n.sources ?? []).map((src) => (
               <SourceChip key={`${src.system}-${src.recordId}`} src={src} />
             ))}
-            {n.conflict && <SourceChip src={n.conflict.source} />}
           </div>
         </div>
 
@@ -191,8 +182,8 @@ export function Inspector({ nodeId, slack }: { nodeId: string | null; slack: Rec
                 <div className={n.value === null ? 'text-crit' : 'text-sky-100'}>{n.value === null ? 'MISSING' : n.value !== undefined ? fmtT(scenario, n.value) : '—'}</div>
               </div>
               <div>
-                <div className="label !text-[8.5px]">{n.conflict ? 'Conflicting source' : 'Assumed (conservative)'}</div>
-                <div className="text-unc">{n.conflict ? fmtT(scenario, n.conflict.value) : n.assumed !== undefined ? fmtT(scenario, n.assumed) : '—'}</div>
+                <div className="label !text-[8.5px]">{r.flags.includes('contradictory') ? 'Sources disagree' : 'Assumed (conservative)'}</div>
+                <div className="text-unc">{r.flags.includes('contradictory') ? 'planning on the later time' : n.assumed !== undefined ? fmtT(scenario, n.assumed) : '—'}</div>
               </div>
             </>
           )}
@@ -267,7 +258,7 @@ export function Inspector({ nodeId, slack }: { nodeId: string | null; slack: Rec
               <span className="label !text-[9.5px] !text-sky-200/80">Consequence curve · {target.code} margin vs slip</span>
             </div>
             <div className="rounded-[3px] border border-sky-300/10 bg-black/25 px-1 pt-2">
-              <CurveChart points={curve} current={shift} qMargin={nodes[target.id]?.qMargin ?? scenario.thresholds.qMargin} cliffThreshold={scenario.thresholds.cliff} step={(range[1] - range[0]) / 160} />
+              <CurveChart points={curve} current={shift} qMargin={nodes[target.id]?.qMargin ?? scenario.thresholds.qMargin} cliffThreshold={scenario.thresholds.cliff} step={(curve[curve.length - 1].delta - curve[0].delta) / Math.max(1, curve.length - 1)} />
             </div>
           </div>
         )}
@@ -286,8 +277,6 @@ export function Inspector({ nodeId, slack }: { nodeId: string | null; slack: Rec
               step={step}
               value={shift}
               onChange={(e) => onSlide(Number(e.target.value))}
-              onPointerUp={commitLog}
-              onKeyUp={commitLog}
             />
             <div className="mt-1 flex justify-between font-mono text-[9px] text-mute">
               <span>{fmtDur(range[0], { signed: true })} earlier</span>
@@ -298,10 +287,10 @@ export function Inspector({ nodeId, slack }: { nodeId: string | null; slack: Rec
               <div className="flex-1">
                 <div className="font-mono text-[10px] text-mute">{target.code} margin</div>
                 <div className="font-mono text-[18px] font-bold" style={{ color: STATUS_COLOR[target.status] }}>
-                  <Ticker value={target.margin} format={(v) => (v >= 0 ? fmtDur(v) : `−${fmtDur(-v)}`)} />
+                  <MarginValue margin={target.margin} kind={target.marginKind} />
                 </div>
               </div>
-              {baseMargin !== undefined && shift !== 0 && (
+              {baseMargin !== undefined && Number.isFinite(baseMargin) && target.marginKind === 'exact' && shift !== 0 && (
                 <div className="text-right font-mono text-[10.5px]">
                   <div className="text-mute">vs as-reported</div>
                   <div className={target.margin - baseMargin < -1e-6 ? 'text-crit' : target.margin - baseMargin > 1e-6 ? 'text-ok' : 'text-calc'}>

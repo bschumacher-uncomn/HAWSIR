@@ -129,6 +129,30 @@ export interface ShuttleSpec {
   transferHours: number;
 }
 
+/** Illustrative positions for map display: network nodes and ship tracks (lon, lat). Not used in calculations. */
+export interface GeoSpec {
+  nodes: Record<string, [number, number]>;
+  tracks: Record<string, { t: number; lon: number; lat: number }[]>;
+  note?: string;
+}
+
+/** Linear interpolation along a track; clamps at the ends. */
+export function positionAt(track: { t: number; lon: number; lat: number }[] | undefined, t: number): [number, number] | undefined {
+  if (!track?.length) return undefined;
+  const pts = track.slice().sort((a, b) => a.t - b.t);
+  if (t <= pts[0].t) return [pts[0].lon, pts[0].lat];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i];
+    const b = pts[i + 1];
+    if (t >= a.t && t <= b.t) {
+      const f = b.t === a.t ? 0 : (t - a.t) / (b.t - a.t);
+      return [a.lon + (b.lon - a.lon) * f, a.lat + (b.lat - a.lat) * f];
+    }
+  }
+  const last = pts[pts.length - 1];
+  return [last.lon, last.lat];
+}
+
 export interface NavalModel {
   id: string;
   name: string;
@@ -145,6 +169,7 @@ export interface NavalModel {
   windows: { mob: [number, number]; aw: [number, number]; ccc: [number, number] };
   authority?: AuthorityTable;
   qMarginH?: number;
+  geo?: GeoSpec;
 }
 
 export const NAVAL_ATTRIBUTES: AttributeDef[] = [

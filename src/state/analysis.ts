@@ -1,51 +1,43 @@
-import { useMemo } from 'react';
-import {
-  evaluateOptions,
-  explainCapability,
-  findCliffs,
-  isShiftable,
-  runMonteCarlo,
-  slackFor,
-  type Cliff,
-  type Line,
-  type MCResult,
-  type OptionEval,
-  type SlackResult,
-} from '@/engine';
-import { useEngine } from './engine';
+import { api } from '@/api/client';
+import { useRemote } from '@/api/useRemote';
+import type { CapAnalysis, NodeAnalysis } from '@/api/types';
+import { useEngine, viewTimeFor } from './engine';
 import { useStore } from './store';
 
-/** Changes only when the picture changes (new event, decision, what-if), not on every replay frame. */
+/**
+ * The time analysis is run for: a coarser step than the picture (6 h, or 1 h
+ * on an H-hour scale), and exactly at each report. Slack, options and Monte
+ * Carlo take longer than a picture, so they refresh when the story moves on,
+ * not on every replay frame.
+ */
+function useAnalysisAt(): number {
+  const { scenario, snapshot } = useEngine();
+  return Math.min(snapshot.at, viewTimeFor(scenario, snapshot.at, true));
+}
+
+/** Changes only when the analysis would (a new report, a decision, a new coarse step). */
 export function useAnalysisKey() {
-  const { scenario, applied, at } = useEngine();
-  const approved = useStore((s) => s.approved);
-  const shifts = useStore((s) => s.shifts);
-  const bucket = scenario.timeScale === 'hours' ? Math.floor(at * 4) : Math.floor(at / 6);
-  return `${scenario.id}|${applied.length}|${approved.join(',')}|${JSON.stringify(shifts)}|${bucket}`;
+  const { snapshot } = useEngine();
+  const version = useStore((s) => s.version);
+  const at = useAnalysisAt();
+  return `${snapshot.mission}|${at}|${snapshot.key.split('|')[1]}|${version}`;
 }
 
-export interface CapAnalysis {
-  slack: SlackResult[];
-  cliffs: Cliff[];
-  lines: Line[];
-  options: { singles: OptionEval[]; combos: OptionEval[] };
-  mc: MCResult;
-}
-
+/** Slack, cliffs, explanation, bounded options and Monte Carlo for one capability, computed by mission-api. */
 export function useCapAnalysis(capId: string | undefined): CapAnalysis | undefined {
-  const { scenario, nodes, result, at } = useEngine();
-  const approved = useStore((s) => s.approved);
+  const { snapshot } = useEngine();
   const key = useAnalysisKey();
-  return useMemo(() => {
-    const cap = result.capabilities.find((c) => c.id === capId);
-    if (!cap) return undefined;
-    const shiftables = [...new Set([...cap.chain, ...cap.coCritical])].filter((id) => isShiftable(nodes[id]));
-    const slack = shiftables.map((id) => slackFor(scenario, nodes, at, id, cap.id));
-    const cliffs = findCliffs(scenario, nodes, at, cap.id, cap.chain);
-    const lines = explainCapability(scenario, nodes, result, cap.id, { slack, cliffs });
-    const options = evaluateOptions(scenario, nodes, at, cap.id, approved);
-    const mc = runMonteCarlo(scenario, nodes, at, 400, 1337);
-    return { slack, cliffs, lines, options, mc };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, capId]);
+  const at = useAnalysisAt();
+  const r = useRemote<CapAnalysis>(capId ? `${key}|cap|${capId}` : null, () => api.get(`/m/${snapshot.mission}/analysis/${encodeURIComponent(capId!)}?at=${at}`));
+  return r.data && r.dataKey?.endsWith(`|cap|${capId}`) ? r.data : undefined;
+}
+
+/** Slack and consequence curve of one input against one capability. */
+export function useNodeAnalysis(nodeId: string | null | undefined, capId: string | undefined): NodeAnalysis | undefined {
+  const { snapshot } = useEngine();
+  const key = useAnalysisKey();
+  const at = useAnalysisAt();
+  const k = nodeId && capId ? `${key}|node|${nodeId}|${capId}` : null;
+  const r = useRemote<NodeAnalysis>(k, () => api.get(`/m/${snapshot.mission}/nodes/${encodeURIComponent(nodeId!)}?cap=${encodeURIComponent(capId!)}&at=${at}`));
+  return r.data && r.dataKey === k ? r.data : undefined;
 }

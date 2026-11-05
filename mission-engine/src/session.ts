@@ -182,24 +182,27 @@ export class MissionSession<M = unknown> {
   }
 
   /** Approve a lever: the exact patches are stored with the decision so the assumption is reproducible. */
-  approve(leverId: string, actor: Actor, at: number, note?: string): Decision {
+  approve(leverId: string, actor: Actor, at: number, note?: string, extra: { wallClock?: string } = {}): Decision {
     if (this.decisions.isStopped(at)) throw new Error('advisory output is stopped; resume before approving');
     const ev = this.evaluate(at);
     const lever = ev.build.levers.find((l) => l.id === leverId);
     if (!lever) throw new Error(`no lever ${leverId} available at ${at}`);
     if (lever.deadline !== undefined && at > lever.deadline) throw new Error(`lever ${leverId} act-by time ${lever.deadline} has passed`);
+    if (lever.infeasible) throw new Error(`lever ${leverId} cannot work as things stand: ${lever.infeasible}`);
+    const ids = new Set(ev.graph.nodes.map((n) => n.id));
+    if (lever.requiresNodes?.some((id) => !ids.has(id))) throw new Error(`lever ${leverId} does not apply to the current picture`);
     return this.decisions.record({
-      kind: 'approve', lever: leverId, actor, at, note, patches: lever.patches,
+      kind: 'approve', lever: leverId, actor, at, note, patches: lever.patches, wallClock: extra.wallClock,
       basis: { factsHead: this.log.head(), graphHash: ev.result.graphHash, resultHash: hashOf(Object.values(ev.result.requirements).map((r) => [r.id, r.status, r.margin])) },
     });
   }
 
-  reject(leverId: string, actor: Actor, at: number, note: string): Decision {
-    return this.decisions.reject(leverId, actor, at, note, { factsHead: this.log.head() });
+  reject(leverId: string, actor: Actor, at: number, note: string, extra: { wallClock?: string } = {}): Decision {
+    return this.decisions.record({ kind: 'reject', lever: leverId, actor, at, note, wallClock: extra.wallClock, basis: { factsHead: this.log.head() } });
   }
 
-  modify(leverId: string, patches: Patch[], actor: Actor, at: number, note: string): Decision {
-    return this.decisions.modify(leverId, patches, actor, at, note, { factsHead: this.log.head() });
+  modify(leverId: string, patches: Patch[], actor: Actor, at: number, note: string, extra: { wallClock?: string } = {}): Decision {
+    return this.decisions.record({ kind: 'modify', lever: leverId, patches, actor, at, note, wallClock: extra.wallClock, basis: { factsHead: this.log.head() } });
   }
 
   levers(asOf: number): Lever[] {

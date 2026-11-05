@@ -3,15 +3,18 @@ import { Background, BackgroundVariant, ReactFlow, ReactFlowProvider, useReactFl
 import { Pause, Play, Radio, Workflow } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { compute, fmtDay, fmtDur, fmtT, hhmm, isShiftable, slackFor, toMap } from '@/engine';
-import type { CapabilityResult, ChangeEvent, Scenario, ThreadSpec } from '@/engine/types';
-import { SCENARIOS } from '@/data/scenarios';
+import { useMissions } from '@/api/hooks';
+import type { CapabilityResult, ChangeEvent, Scenario } from '@/api/types';
+import { BRAND } from '@/brand';
+import { fmtDay, fmtDur, fmtMargin, fmtT, hhmm } from '@/lib/time';
+import { toMap } from '@/lib/graph';
 import { useAnalysisKey, useCapAnalysis } from '@/state/analysis';
-import { useEngine } from '@/state/engine';
+import { useEngine, useSnapshotAt } from '@/state/engine';
 import { useStore } from '@/state/store';
-import { Panel, Pill, StatusBadge, Ticker } from '@/components/ui';
+import { MarginValue, Panel, Pill, StatusBadge } from '@/components/ui';
 import { OptionCard } from '@/features/watch/OptionCard';
 import { autoThread } from '@/features/thread/auto';
+import type { ThreadSpec } from '@/features/thread/types';
 import { layoutThread } from '@/features/thread/layout';
 import { decisionYes, linkFloat, linkId, linkState, stepState, threadEnd, threadTimes, type StepTime } from '@/features/thread/model';
 import { StatusBoard, ThreadTimeline, verdictFor, type Verdict } from '@/features/thread/Panels';
@@ -33,7 +36,7 @@ function fmtSpan(s: Scenario, a: number, b: number) {
   return fmtDay(s, a) === fmtDay(s, b) ? `${fmtT(s, a)}–${hhmm(b)}` : `${fmtT(s, a)} → ${fmtT(s, b)}`;
 }
 
-const signed = (m: number) => (!Number.isFinite(m) ? 'NEVER' : m >= 0 ? `+${fmtDur(m)}` : `−${fmtDur(-m)}`);
+const signed = (c: Pick<CapabilityResult, 'margin' | 'marginKind'>) => (c.marginKind !== 'exact' ? fmtMargin(c.margin, c.marginKind) : c.margin >= 0 ? `+${fmtDur(c.margin)}` : `−${fmtDur(-c.margin)}`);
 
 interface ThreadModel {
   spec: ThreadSpec;
@@ -43,19 +46,18 @@ interface ThreadModel {
   end: number;
 }
 
+/** The thread for the selected capability, timed now and as planned at watch start (the plan of record). */
 function useThread(): ThreadModel | undefined {
   const { scenario, nodes, result, cap: selected } = useEngine();
-  const capId = scenario.thread?.steps.find((s) => s.kind === 'end')?.node ?? selected?.id;
-  const spec = useMemo(() => scenario.thread ?? (capId ? autoThread(nodes, capId) : undefined), [scenario, nodes, capId]);
-  const baseRes = useMemo(() => {
-    const n = toMap(scenario.nodes);
-    return { nodes: n, res: compute(scenario, n, scenario.watchStart) };
-  }, [scenario]);
+  const capId = selected?.id;
+  const spec = useMemo(() => (capId ? autoThread(nodes, capId) : undefined), [nodes, capId]);
+  const plan = useSnapshotAt(scenario.id, scenario.watchStart).data;
+  const baseRes = useMemo(() => (plan ? { nodes: toMap(plan.nodes), res: plan.result } : undefined), [plan]);
   const cap = result.capabilities.find((c) => c.id === capId);
   return useMemo(() => {
     if (!spec || !cap) return undefined;
-    const times = threadTimes(spec, scenario, nodes, result, cap, baseRes.res);
-    const base = threadTimes(spec, scenario, baseRes.nodes, baseRes.res, baseRes.res.capabilities.find((c) => c.id === cap.id));
+    const times = threadTimes(spec, scenario, nodes, result, cap, baseRes?.res);
+    const base = baseRes ? threadTimes(spec, scenario, baseRes.nodes, baseRes.res, baseRes.res.capabilities.find((c) => c.id === cap.id)) : times;
     return { spec, cap, times, base, end: threadEnd(spec, times) };
   }, [spec, cap, scenario, nodes, result, baseRes]);
 }
@@ -174,7 +176,7 @@ function Canvas({ m, tau }: { m: ThreadModel; tau: number }) {
           waitText: t.wait && t.start - t.arrive > 1 / 60 ? `WAITS ${fmtSpan(scenario, t.arrive, t.start)} · ${t.wait.label}` : undefined,
           resources,
           outcome: step.kind === 'decision' && state === 'done' ? 'yes' : step.kind === 'decision' && state === 'blocked' ? 'no' : undefined,
-          cap: step.kind === 'end' ? { status: m.cap.status, margin: signed(m.cap.margin), due: fmtT(scenario, m.cap.requiredBy), eta: fmtT(scenario, m.cap.ready) } : undefined,
+          cap: step.kind === 'end' ? { status: m.cap.status, margin: signed(m.cap), due: fmtT(scenario, m.cap.requiredBy), eta: fmtT(scenario, m.cap.ready) } : undefined,
           w: p.w,
           h: p.h,
         },
@@ -253,12 +255,10 @@ function Canvas({ m, tau }: { m: ThreadModel; tau: number }) {
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(56,189,248,0.12)" />
       </ReactFlow>
-      {!scenario.thread && (
-        <div className="absolute left-3 top-2 flex items-center gap-2">
-          <span className="label !text-[9px]">Thread for</span>
-          <CapChips capId={m.cap.id} />
-        </div>
-      )}
+      <div className="absolute left-3 top-2 flex items-center gap-2">
+        <span className="label !text-[9px]">Thread for</span>
+        <CapChips capId={m.cap.id} />
+      </div>
       {plannedActive && (
         <div className="pointer-events-none absolute right-3 top-2">
           <Pill color="#a78bfa">Planning assumptions applied · source records unchanged</Pill>
@@ -285,9 +285,10 @@ function Canvas({ m, tau }: { m: ThreadModel; tau: number }) {
 function ThreadPicker() {
   const scenarioId = useStore((s) => s.scenarioId);
   const setScenario = useStore((s) => s.setScenario);
+  const missions = useMissions();
   return (
     <div className="flex overflow-hidden rounded-[3px] border border-sky-300/20">
-      {SCENARIOS.map((s) => (
+      {missions.map((s) => (
         <button
           key={s.id}
           type="button"
@@ -295,7 +296,6 @@ function ThreadPicker() {
           title={s.name}
           className={cn('px-2.5 py-1.5 font-display text-[10px] font-semibold uppercase tracking-[0.12em] transition', s.id === scenarioId ? 'bg-calc/15 text-calc' : 'text-mute hover:text-sky-100')}
         >
-          {s.thread ? '★ ' : ''}
           {s.short}
         </button>
       ))}
@@ -332,8 +332,8 @@ function Header({ m, tau, projecting, onRun }: { m: ThreadModel; tau: number; pr
       <div className="flex min-w-[260px] flex-1 items-center gap-2.5">
         <Workflow size={20} className="shrink-0 text-calc drop-shadow-[0_0_8px_#22d3ee]" />
         <div className="min-w-0">
-          <div className="label !text-[9px] !text-calc/80">Executable mission thread · {scenario.thread ? 'hand-laid' : 'auto-laid from the engine graph'}</div>
-          <div className="truncate font-display text-[15px] font-bold tracking-[0.16em] text-white">{scenario.thread ? scenario.mission.name : `${scenario.mission.name} · ${c.code}`}</div>
+          <div className="label !text-[9px] !text-calc/80">Executable mission thread · auto-laid from the engine graph</div>
+          <div className="truncate font-display text-[15px] font-bold tracking-[0.16em] text-white">{`${scenario.mission.name} · ${c.code}`}</div>
           <div className="truncate text-[11px] text-sky-200/60">{m.spec.thesis}</div>
         </div>
       </div>
@@ -341,7 +341,7 @@ function Header({ m, tau, projecting, onRun }: { m: ThreadModel; tau: number; pr
         <StatusBadge status={c.status} size="lg" pulse />
         <div className="leading-none">
           <div className="label !text-[9px]">Mission margin</div>
-          <Ticker value={c.margin} format={signed} className="font-display text-[26px] font-bold" />
+          <MarginValue margin={c.margin} kind={c.marginKind} className="font-display text-[26px] font-bold" />
         </div>
         <div className="font-mono text-[10.5px] leading-snug text-sky-200/70">
           <div>due {fmtT(scenario, c.requiredBy)}</div>
@@ -384,22 +384,18 @@ function Header({ m, tau, projecting, onRun }: { m: ThreadModel; tau: number; pr
 }
 
 function useVerdicts(capId: string): Record<string, Verdict | undefined> {
-  const { scenario, impacts, nodes, at } = useEngine();
+  const { scenario, impacts } = useEngine();
   const key = useAnalysisKey();
   return useMemo(() => {
     const out: Record<string, Verdict | undefined> = {};
-    for (const e of scenario.events) {
-      const id = e.patches.find((p) => p.op === 'set')?.id;
-      const slack = id && nodes[id] && isShiftable(nodes[id]) ? slackFor(scenario, nodes, at, id, capId).noImpact : undefined;
-      out[e.id] = verdictFor(impacts[e.id], capId, slack);
-    }
+    for (const e of scenario.events) out[e.id] = verdictFor(impacts[e.id], capId, undefined);
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, capId]);
 }
 
 function Options({ capId }: { capId: string }) {
-  const { scenario, cap } = useEngine();
+  const { scenario, cap, levers } = useEngine();
   const analysis = useCapAnalysis(capId);
   const c = useEngine().result.capabilities.find((x) => x.id === capId) ?? cap;
   if (!analysis || !c) return null;
@@ -410,14 +406,14 @@ function Options({ capId }: { capId: string }) {
     <div className="flex h-full flex-col gap-1.5 overflow-y-auto px-3 py-2">
       {c.status === 'Y' ? (
         <div className="rounded-[3px] border border-ok/25 bg-ok/[0.05] px-2.5 py-2 text-[11.5px] leading-snug text-ok/90">
-          No action needed. The thread meets {fmtT(scenario, c.requiredBy)} with {fmtDur(c.margin)} margin.
-          <div className="mt-1 font-mono text-[10px] text-mute">{scenario.levers.length} pre-authorized options stay in the library until a report puts the mission at risk.</div>
+          No action needed. The thread meets {fmtT(scenario, c.requiredBy)} with {fmtMargin(c.margin, c.marginKind)} margin.
+          <div className="mt-1 font-mono text-[10px] text-mute">{levers.length} pre-authorized options stay in the library until a report puts the mission at risk.</div>
         </div>
       ) : (
         all.slice(0, 4).map((o, i) => <OptionCard key={o.id} o={o} rank={i + 1} compact />)
       )}
       <div className="mt-auto rounded-[3px] border border-sky-300/10 bg-black/30 px-2 py-1.5 font-mono text-[9.5px] leading-relaxed text-mute">
-        Approving records a planning assumption on the hash chain. NAVIFI does not reassign people, change tasking or write to source systems.
+        Approving records a planning assumption on the hash chain. {BRAND.name} does not reassign people, change tasking or write to source systems.
       </div>
     </div>
   );

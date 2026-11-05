@@ -1,7 +1,7 @@
 import dagre from '@dagrejs/dagre';
 import type { Edge, Node } from '@xyflow/react';
-import { upstreamCone, type CapabilityResult, type EngineResult, type NodeMap, type SlackResult } from '@/engine';
-import type { NodeKind } from '@/engine/types';
+import type { CapabilityResult, EngineResult, NodeKind, NodeMap, SlackResult } from '@/api/types';
+import { upstreamCone } from '@/lib/graph';
 
 export type Role = 'chain' | 'cocrit' | 'cone' | 'off';
 
@@ -85,7 +85,7 @@ export function buildGraph(
     const [w, h] = nodeSize(n.kind);
     return {
       id: n.id,
-      type: 'navifi',
+      type: 'engine',
       position: { x: p.x - w / 2, y: p.y - h / 2 },
       width: w,
       height: h,

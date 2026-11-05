@@ -1,0 +1,7 @@
+apiVersion: v2
+name: hawsir
+description: HAWSIR mission consequence engine (web app, mission-api, Postgres) for RKE2 + UDS Core
+type: application
+version: 0.11.0
+appVersion: "0.11.0"
+keywords: [navy, readiness, decision-support, uds, edge]

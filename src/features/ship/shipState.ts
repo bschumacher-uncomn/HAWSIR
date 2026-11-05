@@ -1,4 +1,5 @@
-import { affectedCapabilities, type EngineResult, type NodeMap, type ShipPart } from '@/engine';
+import type { EngineResult, NodeMap, ShipPart } from '@/api/types';
+import { affectedCapabilities } from '@/lib/graph';
 
 export const PART_LABEL: Record<ShipPart, string> = {
   spy_a: 'SPY-1D Array A',
@@ -66,8 +67,8 @@ export function shipParts(
     const caps = r.capabilities.filter((c) => capIds.includes(c.id));
     const worst = caps.some((c) => c.status === 'N') ? 'crit' : caps.some((c) => c.status === 'Q') ? 'warn' : 'info';
     const flagged = ids.some((id) => (r.nodes[id]?.flags.length ?? 0) > 0);
-    const kofnOk = ids.some((id) => nodes[id].kind === 'kofn' && (r.nodes[id]?.ready ?? Infinity) <= at);
-    const eta = down.length ? Math.max(...down.map((id) => r.nodes[id].ready)) : undefined;
+    const kofnOk = ids.some((id) => nodes[id]?.kind === 'kofn' && (r.nodes[id]?.ready ?? Infinity) <= at);
+    const eta = down.length ? Math.max(...down.map((id) => r.nodes[id]?.ready ?? Infinity)) : undefined;
     out[part] = {
       etaLabel: eta !== undefined && fmt ? `ETR ${fmt(eta)}` : undefined,
       part,
@@ -75,7 +76,7 @@ export function shipParts(
       partial: down.length > 0 && kofnOk,
       sev: down.length === 0 ? (flagged ? 'warn' : 'ok') : kofnOk ? 'warn' : worst,
       label: labels[part] ?? PART_LABEL[part],
-      eta: down.length ? Math.max(...down.map((id) => r.nodes[id].ready)) : undefined,
+      eta,
       capIds,
       nodeIds: ids,
       flagged,

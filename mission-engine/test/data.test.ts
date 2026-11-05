@@ -73,6 +73,29 @@ describe('fact store', () => {
     (ship.all()[1] as { value: unknown }).value = 99;
     expect(ship.verify()).toEqual({ ok: false, brokenAt: 1 });
   });
+  it('a fact received late over sync is not known before it arrived, and keeps its id', () => {
+    const shore = new FactLog(attrs(), 'shore');
+    const ship = new FactLog(attrs(), 'ship');
+    const eta = shore.append(f({ entity: 'lru', attr: 'part_eta', value: 70, observedAt: 58.5, recordedAt: 58.5, source: { system: 'R-SUPPLY', kind: 'feed' } }));
+    // the ship is out of contact until t=61
+    const r = ship.merge(shore, { receivedAt: 61 });
+    expect(r.added).toBe(1);
+    const got = ship.all()[0];
+    expect(got.id).toBe(eta.id);
+    expect(got.receivedAt).toBe(61);
+    expect(ship.view(60).get('lru', 'part_eta').value).toBeUndefined();
+    expect(ship.view(61).get('lru', 'part_eta').value).toBe(70);
+    expect(shore.view(60).get('lru', 'part_eta').value).toBe(70);
+    expect(ship.verify().ok).toBe(true);
+    // the receipt time is covered by the node's chain: editing it is detected
+    (ship.all()[0] as { receivedAt?: number }).receivedAt = 50;
+    expect(ship.verify().ok).toBe(false);
+    // and survives a JSONL round trip
+    const ship2 = new FactLog(attrs(), 'ship');
+    ship2.merge(shore, { receivedAt: 61 });
+    const back = FactLog.fromJSONL(ship2.toJSONL(), attrs(), 'ship');
+    expect(back.head()).toBe(ship2.head());
+  });
 });
 
 describe('decision log', () => {

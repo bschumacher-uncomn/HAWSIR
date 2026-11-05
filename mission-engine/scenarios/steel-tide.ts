@@ -17,6 +17,7 @@
  */
 import type { NavalModel, PersonSpec, ShipSpec, SystemSpec } from '../src/packs/naval/model';
 import type { FactInput } from '../src/data/store';
+import type { MissionDisplay, ScenarioEvent } from './display';
 
 export const H = 60;
 
@@ -127,10 +128,54 @@ export const steelTideModel: NavalModel = {
   ],
   windows: { mob: [0, 120], aw: [56, 120], ccc: [0, 120] },
   qMarginH: 6,
+  geo: {
+    note: 'Illustrative positions on real geography; every name is fictional and positions do not drive any calculation.',
+    nodes: {
+      'alpha-port': [52.2, 25.4],
+      'alpha-field': [57.6, 21.4],
+      bravo: [75.0, -12.0],
+      delta: [61.5, 18.5],
+    },
+    tracks: {
+      ...Object.fromEntries(
+        ([['cvn', 0, 0], ['cg', 0.9, 0.75], ['ddgB', -1.0, 0.85], ['ddgC', 1.0, -0.85], ['ddgD', -0.9, -1.0]] as const).map(([id, dx, dy]) => [
+          id,
+          [
+            { t: 0, lon: 64.6 + dx, lat: 15.4 + dy },
+            { t: 40, lon: 63.3 + dx, lat: 16.7 + dy },
+            { t: 60, lon: 61.5 + dx, lat: 18.5 + dy },
+            { t: 90, lon: 62.0 + dx, lat: 18.0 + dy },
+            { t: 168, lon: 62.6 + dx, lat: 17.4 + dy },
+          ],
+        ]),
+      ),
+      oiler: [
+        { t: 0, lon: 52.2, lat: 25.4 },
+        { t: 36, lon: 52.2, lat: 25.4 },
+        { t: 73.5, lon: 61.7, lat: 18.3 },
+        { t: 90, lon: 62.1, lat: 17.9 },
+        { t: 168, lon: 66.5, lat: 6.0 },
+      ],
+      take: [
+        { t: 0, lon: 75.0, lat: -12.0 },
+        { t: 168, lon: 75.0, lat: -12.0 },
+      ],
+    },
+  },
+};
+
+/** Which node a scripted report arrives at when ship and shore run as separate nodes. */
+export const DELIVERY: Record<string, 'ship' | 'shore'> = {
+  'OMMS-NG': 'ship',
+  NSIPS: 'ship',
+  'FUEL-RPT': 'ship',
+  'R-SUPPLY': 'shore',
+  'DLA-TRACK': 'shore',
+  'FLEET-SITREP': 'shore',
 };
 
 const base = (x: Partial<FactInput> & Pick<FactInput, 'entity' | 'attr' | 'value' | 'source'>): FactInput => ({
-  observedAt: 0, recordedAt: 0, recordedBy: 'synthetic-feed', ...x,
+  observedAt: 0, recordedAt: 0, recordedBy: 'synthetic-feed', origin: x.recordedAt !== undefined && x.recordedAt > 0 ? `feed:${x.source.system}` : 'seed', ...x,
 });
 const feed = (system: string, recordId?: string) => ({ system, recordId, kind: 'synthetic' as const });
 
@@ -171,28 +216,134 @@ export function baselineFacts(): FactInput[] {
 /** Facts that arrive during the watch, each with its recordedAt. */
 export function watchFacts(): FactInput[] {
   const fuel = (ship: string, v: number | string, t: number) =>
-    base({ entity: ship, attr: 'fuel_pct', value: v, observedAt: t, recordedAt: t, source: feed('FUEL-RPT', `${ship.toUpperCase()}-F-${t}`) });
+    base({ entity: ship, attr: 'fuel_pct', value: v, observedAt: t, recordedAt: t, reason: 'routine fuel report', source: feed('FUEL-RPT', `${ship.toUpperCase()}-F-${t}`) });
   return [
     // routine fuel reports; Marlowe's t=48 report arrives malformed
     fuel('cg', 63, 24), fuel('ddgB', 47, 24), fuel('ddgC', 52, 24), fuel('ddgD', 56, 24),
     fuel('cg', 53.7, 48), fuel('ddgB', 34.3, 48), fuel('ddgC', 142, 48), fuel('ddgD', 43.3, 48),
     // H-6: Kittredge SATCOM casualty
     base({
-      entity: 'ddgB-satcom', attr: 'casrep', validFrom: 54, observedAt: 54, recordedAt: 54, source: feed('OMMS-NG', 'CASREP-181-0221'),
+      entity: 'ddgB-satcom', attr: 'casrep', validFrom: 54, observedAt: 54, recordedAt: 54, reason: 'Kittredge SATCOM modem failure (C-3)', source: feed('OMMS-NG', 'CASREP-181-0221'),
       value: { category: 'C-3', part: 'satcom-modem', partLabel: 'SATCOM modem LRU', repairHours: 3, crewQual: 'ET', crewK: 2, fad: 'II', und: 'A', narrative: 'Modem LRU failure; no SATCOM transmit or receive' },
     }),
     base({ entity: 'ddgB-p8', attr: 'person_unavailable', value: [[54, 66]], observedAt: 54, recordedAt: 54, reason: 'sick in quarters', source: feed('NSIPS', 'SIQ-181-0221') }),
-    base({ entity: 'satcom-modem', attr: 'part_eta', value: 58, observedAt: 54.5, recordedAt: 54.5, source: feed('R-SUPPLY', 'REQ-181-0221') }),
-    base({ entity: 'satcom-modem', attr: 'part_at', value: 'alpha-field', observedAt: 54.5, recordedAt: 54.5, source: feed('R-SUPPLY', 'REQ-181-0221') }),
-    base({ entity: 'satcom-modem', attr: 'part_eta', value: 63, observedAt: 55, recordedAt: 55, source: feed('DLA-TRACK', 'TCN-881-2207') }),
+    base({ entity: 'satcom-modem', attr: 'part_eta', value: 58, observedAt: 54.5, recordedAt: 54.5, reason: 'R-Supply ETA for the modem', source: feed('R-SUPPLY', 'REQ-181-0221') }),
+    base({ entity: 'satcom-modem', attr: 'part_at', value: 'alpha-field', observedAt: 54.5, recordedAt: 54.5, reason: 'part staged at Alpha Airfield', source: feed('R-SUPPLY', 'REQ-181-0221') }),
+    base({ entity: 'satcom-modem', attr: 'part_eta', value: 63, observedAt: 55, recordedAt: 55, reason: 'DLA tracking shows a later ETA', source: feed('DLA-TRACK', 'TCN-881-2207') }),
     // H-2: forward site closed; supply re-routes the part to Atoll Bravo
-    base({ entity: 'alpha-port', attr: 'node_status', value: 'CLOSED', validFrom: 58, observedAt: 58, recordedAt: 58, source: feed('FLEET-SITREP', 'SITREP-058') }),
-    base({ entity: 'alpha-field', attr: 'node_status', value: 'CLOSED', validFrom: 58, observedAt: 58, recordedAt: 58, source: feed('FLEET-SITREP', 'SITREP-058') }),
-    base({ entity: 'satcom-modem', attr: 'part_at', value: 'bravo', observedAt: 58.5, recordedAt: 58.5, source: feed('R-SUPPLY', 'REQ-181-0221') }),
-    base({ entity: 'satcom-modem', attr: 'part_eta', value: 70, observedAt: 58.5, recordedAt: 58.5, source: feed('R-SUPPLY', 'REQ-181-0221') }),
+    base({ entity: 'alpha-port', attr: 'node_status', value: 'CLOSED', validFrom: 58, observedAt: 58, recordedAt: 58, reason: 'Port Alpha closed after attack', source: feed('FLEET-SITREP', 'SITREP-058') }),
+    base({ entity: 'alpha-field', attr: 'node_status', value: 'CLOSED', validFrom: 58, observedAt: 58, recordedAt: 58, reason: 'Alpha Airfield closed after attack', source: feed('FLEET-SITREP', 'SITREP-058') }),
+    base({ entity: 'satcom-modem', attr: 'part_at', value: 'bravo', observedAt: 58.5, recordedAt: 58.5, reason: 'part re-routed to Atoll Bravo', source: feed('R-SUPPLY', 'REQ-181-0221') }),
+    base({ entity: 'satcom-modem', attr: 'part_eta', value: 70, observedAt: 58.5, recordedAt: 58.5, reason: 'new ETA at Atoll Bravo', source: feed('R-SUPPLY', 'REQ-181-0221') }),
   ];
 }
 
 export function steelTideFacts(): FactInput[] {
   return [...baselineFacts(), ...watchFacts()];
 }
+
+/* ---------------------------------------------------------------- events */
+
+/** The watch reports grouped as they land on a watch floor (each fact still arrives where it originates). */
+export function steelTideEvents(): ScenarioEvent[] {
+  const w = watchFacts();
+  const pick = (pred: (f: FactInput) => boolean) => w.filter(pred);
+  const at = (t: number) => (f: FactInput) => f.recordedAt === t;
+  return [
+    {
+      id: 'ST01', t: 24, kind: 'fuel', severity: 'info', title: 'Routine fuel reports (H-36)',
+      detail: 'Port Harmon 63%, Kittredge 47%, Marlowe 52%, Okafor 56%. Consistent with the planned burn on station.',
+      facts: pick((f) => f.attr === 'fuel_pct' && f.recordedAt === 24),
+    },
+    {
+      id: 'ST02', t: 48, kind: 'fuel', severity: 'warn', title: 'Fuel reports (H-12): Marlowe report malformed',
+      detail: "Kittredge at 34.3% after the dash, below the 30% replenish trigger before CONSOL 1. Marlowe's report reads 142% and is quarantined; the last good value stands.",
+      board: { system: 'MARLOWE FUEL', status: 'DEGRADED' },
+      facts: pick((f) => f.attr === 'fuel_pct' && f.recordedAt === 48),
+    },
+    {
+      id: 'ST03', t: 54, kind: 'casrep', severity: 'crit', title: 'CASREP CAT 3: Kittredge SATCOM modem',
+      detail: 'Modem LRU failure: no SATCOM transmit or receive. Repair needs the modem part and two ETs. Kittredge is a TLAM shooter for STEEL TIDE at H.',
+      board: { system: 'KITTREDGE SATCOM', status: 'DOWN' },
+      facts: pick((f) => f.attr === 'casrep' && f.recordedAt === 54),
+    },
+    {
+      id: 'ST04', t: 54, kind: 'personnel', severity: 'warn', title: 'NSIPS: ET2 Park sick in quarters',
+      detail: 'One of the two qualified ETs aboard Kittredge is SIQ until H+6. The modem repair needs both.',
+      board: { system: 'ET2 PARK', status: 'CONSTRAINT' },
+      facts: pick((f) => f.attr === 'person_unavailable' && at(54)(f)),
+    },
+    {
+      id: 'ST05', t: 54, kind: 'link', severity: 'crit', title: 'Kittredge data link lost (DDIL)',
+      detail: 'With the SATCOM terminal down Kittredge has no ship-to-shore data path. Its node keeps computing on what it holds.',
+      facts: [], link: { up: false, reason: 'Kittredge SATCOM terminal down (CASREP C-3); no ship-to-shore data path', ship: 'ddgB' },
+    },
+    {
+      id: 'ST06', t: 54.5, kind: 'supply', severity: 'info', title: 'R-Supply: modem staged at Alpha Airfield, ETA H-2',
+      detail: 'Requisition REQ-181-0221: the SATCOM modem LRU is at Alpha Airfield for the next COD to Resolute, then helo cross-deck to Kittredge.',
+      board: { system: 'MODEM REQUISITION', status: 'CONSTRAINT' },
+      facts: pick((f) => f.entity === 'satcom-modem' && f.recordedAt === 54.5),
+    },
+    {
+      id: 'ST07', t: 55, kind: 'quality', severity: 'warn', title: 'DLA tracking contradicts R-Supply ETA',
+      detail: 'TCN tracking shows the modem at Alpha Airfield H+3, five hours later than R-Supply. Sources disagree; the engine plans on the later time.',
+      board: { system: 'MODEM REQUISITION', status: 'DEGRADED' },
+      facts: pick((f) => f.entity === 'satcom-modem' && f.recordedAt === 55),
+    },
+    {
+      id: 'ST08', t: 58, kind: 'fleet', severity: 'crit', title: 'Forward site closed: Port Alpha and Alpha Airfield',
+      detail: 'Fleet SITREP: the forward site is closed after an attack. No COD from Alpha Airfield; CONSOL shipping cannot sail from Port Alpha.',
+      board: { system: 'PORT ALPHA', status: 'DOWN' },
+      facts: pick((f) => f.attr === 'node_status' && f.recordedAt === 58),
+    },
+    {
+      id: 'ST09', t: 58.5, kind: 'supply', severity: 'crit', title: 'R-Supply: modem re-routed to Atoll Bravo',
+      detail: 'The part is re-routed to Atoll Bravo, 2,000 nm from Station Delta: beyond CMV-22B range. New ETA at Bravo H+10.',
+      board: { system: 'MODEM REQUISITION', status: 'CONSTRAINT' },
+      facts: pick((f) => f.entity === 'satcom-modem' && f.recordedAt === 58.5),
+    },
+  ];
+}
+
+/* ---------------------------------------------------------------- display */
+
+export const steelTideDisplay: MissionDisplay = {
+  id: 'steel-tide',
+  short: 'CSG strike · STEEL TIDE',
+  name: 'Carrier Strike Group TLAM Strike, H-12 to H+2',
+  tagline: 'The radio goes down six hours before the strike',
+  timeScale: 'hhour',
+  hHour: H,
+  tzOffset: 4,
+  ownShip: { id: 'ddgB', name: 'USS KITTREDGE', hull: 'DDG-181', cls: 'Arleigh Burke (synthetic)', homeport: 'Forward deployed' },
+  mission: {
+    name: 'OPERATION STEEL TIDE', area: 'Arabian Sea · Station Delta', start: H,
+    summary: 'TLAM strike at H from Kittredge and Marlowe under strike EMCON, then the air and missile defense screen and CONSOL 1.',
+    tasking: 'JFMCC strike tasking STEEL TIDE (24 TLAM) · CSG-X AW screen (3 of 4 escorts)',
+  },
+  watchStart: 48,
+  defaultFocus: 'strike:tide',
+  phases: [
+    { id: 'ph_station', name: 'ON STATION · DELTA', start: 0, end: 40, requires: ['met:ddgB:MOB', 'met:ddgC:MOB'], location: 'Station Delta' },
+    { id: 'ph_dash', name: 'DASH TO LAUNCH BASKET', start: 40, end: 56, requires: ['met:ddgB:MOB', 'met:ddgC:MOB', 'grp:csg:AW'], location: 'Launch basket' },
+    { id: 'ph_emcon', name: 'STRIKE EMCON', start: 56, end: H, requires: ['grp:csg:AW'], location: 'Launch basket' },
+    { id: 'ph_strike', name: 'STEEL TIDE · TLAM STRIKE', start: H, end: H + 2, requires: ['strike:tide', 'met:ddgB:STW:tide', 'met:ddgC:STW:tide'], location: 'Launch basket' },
+    { id: 'ph_post', name: 'POST-STRIKE · AW SCREEN', start: H + 2, end: 76, requires: ['grp:csg:AW'], location: 'Station Delta' },
+    { id: 'ph_consol', name: 'CONSOL 1 · UNREP', start: 76, end: 120, requires: ['met:ddgB:MOB', 'met:ddgC:MOB'], location: 'Station Delta' },
+  ],
+  places: {
+    'alpha-port': { name: 'Port Alpha', lon: 52.2, lat: 25.4, kind: 'port' },
+    'alpha-field': { name: 'Alpha Airfield', lon: 57.6, lat: 21.4, kind: 'airfield' },
+    bravo: { name: 'Atoll Bravo', lon: 75.0, lat: -12.0, kind: 'hub' },
+    delta: { name: 'Station Delta', lon: 61.5, lat: 18.5, kind: 'opArea' },
+  },
+  legs: [
+    { id: 'leg_modem', label: 'SATCOM modem LRU', kind: 'part', nodeId: 'part:satcom-modem:ddgB', from: '@part_at:satcom-modem', to: 'ship', ship: 'ddgB' },
+    { id: 'leg_spytrm', label: 'SPY T/R module', kind: 'part', nodeId: 'part:spy-trm:ddgD', from: '@part_at:spy-trm', to: 'ship', ship: 'ddgD' },
+    { id: 'leg_consol', label: 'CONSOL 1 (Ada Brooks)', kind: 'ship', nodeId: 'unrep:consol1:arrive', from: 'alpha-port', to: 'delta', ship: 'oiler' },
+  ],
+  missionArea: { name: 'STATION DELTA · LAUNCH BASKET', lon: 61.5, lat: 18.5, radiusKm: 140 },
+  mapView: { longitude: 62, latitude: 12, zoom: 3.4 },
+  tracks: Object.fromEntries(Object.entries(steelTideModel.geo!.tracks).map(([k, v]) => [k, v.map((p) => ({ t: p.t, lon: p.lon, lat: p.lat }))])),
+  ships: ships.map((s) => ({ id: s.id, name: s.name, hull: s.hull, cls: s.cls, group: s.group })),
+};

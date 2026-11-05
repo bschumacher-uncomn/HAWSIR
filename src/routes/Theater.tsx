@@ -3,8 +3,8 @@ import { MapView } from '@deck.gl/core';
 import { GeoJsonLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer, TextLayer } from '@deck.gl/layers';
 import { useMemo } from 'react';
 import { usePulse } from '@/lib/usePulse';
-import { Anchor, Box, Plane, Radio, User, type LucideIcon } from 'lucide-react';
-import { fmtT } from '@/engine/time';
+import { Anchor, Box, Plane, Radio, Ship, User, type LucideIcon } from 'lucide-react';
+import { fmtT } from '@/lib/time';
 import { useEngine } from '@/state/engine';
 import { useStore } from '@/state/store';
 import { Panel, Pill, StatusBadge } from '@/components/ui';
@@ -16,7 +16,7 @@ import { resolveLegs, type ResolvedLeg } from '@/features/theater/legs';
 type RGBA = [number, number, number, number];
 const rgb = (hex: string, a = 255): RGBA => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16), a];
 const LEG_COLOR: Record<ResolvedLeg['status'], string> = { done: '#475569', ok: '#22d3ee', risk: '#fbbf24', crit: '#fb3b5c' };
-const LEG_ICON: Record<ResolvedLeg['leg']['kind'], LucideIcon> = { part: Box, person: User, aircraft: Plane, data: Radio };
+const LEG_ICON: Record<ResolvedLeg['leg']['kind'], LucideIcon> = { part: Box, person: User, aircraft: Plane, data: Radio, ship: Ship };
 const ARRAYS = [
   { id: 'sys_spy_a', label: 'A', bearing: 45 },
   { id: 'sys_spy_b', label: 'B', bearing: 135 },
@@ -27,14 +27,28 @@ const RADAR_KM = 400;
 const ATLANTIC_VIEW = { longitude: -36.5, latitude: 31, zoom: 3.12 };
 
 export default function Theater() {
-  const { scenario, at, nodes, result, cap } = useEngine();
+  const { scenario, at, nodes, result, cap, snapshot } = useEngine();
   const selectNode = useStore((s) => s.selectNode);
   const pulse = usePulse();
   const track = scenario.track ?? [];
   const hasGeo = track.length > 0;
   const ship = positionAt(track, at);
   const split = useMemo(() => splitTrack(track, at), [track, at]);
-  const legs = useMemo(() => resolveLegs(scenario, nodes, result, at, cap), [scenario, nodes, result, at, cap]);
+  const legs = useMemo(() => resolveLegs(scenario, nodes, result, at, snapshot.legFrom, cap), [scenario, nodes, result, at, snapshot.legFrom, cap]);
+  const ports = useMemo(() => Object.values(scenario.places).filter((p) => p.kind === 'port' || p.kind === 'airfield' || p.kind === 'hub'), [scenario]);
+  // every other ship in the mission, moving on its own track, colored by its worst requirement
+  const fleet = useMemo(
+    () =>
+      scenario.ships
+        .filter((sh) => sh.id !== scenario.ship.id && (scenario.tracks[sh.id]?.length ?? 0) > 0)
+        .map((sh) => {
+          const tr = scenario.tracks[sh.id];
+          const reqs = result.capabilities.filter((c) => c.owner === sh.id);
+          const worst = reqs.find((c) => c.status === 'N') ?? reqs.find((c) => c.status === 'UNK') ?? reqs.find((c) => c.status === 'Q');
+          return { ...sh, at: positionAt(tr, at), split: splitTrack(tr, at), color: worst ? STATUS_COLOR[worst.status] : '#7dd3fc', worst };
+        }),
+    [scenario, result, at],
+  );
   const phase = scenario.phases.find((p) => at >= p.start && at < p.end);
   const area = scenario.missionArea;
   const view = scenario.mapView ?? ATLANTIC_VIEW;
@@ -145,7 +159,7 @@ export default function Theater() {
     }),
     new ScatterplotLayer({
       id: 'ports',
-      data: scenario.ports ?? [],
+      data: ports,
       getPosition: (d) => [d.lon, d.lat],
       getRadius: 5,
       radiusUnits: 'pixels',
@@ -154,6 +168,28 @@ export default function Theater() {
       getLineColor: [224, 242, 254, 220],
       getLineWidth: 1.5,
       lineWidthUnits: 'pixels',
+    }),
+    new PathLayer({ id: 'fleet-todo', data: fleet, getPath: (d) => d.split.todo, getColor: (d) => rgb(d.color, 55), getWidth: 1.5, widthUnits: 'pixels', updateTriggers: { getPath: at } }),
+    new PathLayer({ id: 'fleet-done', data: fleet, getPath: (d) => d.split.done, getColor: (d) => rgb(d.color, 170), getWidth: 2, widthUnits: 'pixels', updateTriggers: { getPath: at } }),
+    new ScatterplotLayer({
+      id: 'fleet-pulse',
+      data: fleet.filter((f) => f.worst),
+      getPosition: (d) => d.at.pos,
+      getRadius: 6 + ph * 22,
+      radiusUnits: 'pixels',
+      filled: false,
+      stroked: true,
+      getLineColor: (d) => rgb(d.color, Math.round(200 * (1 - ph))),
+      getLineWidth: 1.5,
+      lineWidthUnits: 'pixels',
+      updateTriggers: { getRadius: ph, getLineColor: ph, getPosition: at },
+    }),
+    new SolidPolygonLayer({
+      id: 'fleet-ships',
+      data: fleet,
+      getPolygon: (d) => [offset(d.at.pos, 40 * kmScale, d.at.heading), offset(d.at.pos, 22 * kmScale, d.at.heading + 140), d.at.pos, offset(d.at.pos, 22 * kmScale, d.at.heading - 140)],
+      getFillColor: (d) => rgb(d.color, 235),
+      updateTriggers: { getPolygon: at, getFillColor: result },
     }),
     new ScatterplotLayer({
       id: 'ship-pulse',
@@ -177,7 +213,7 @@ export default function Theater() {
     new TextLayer({
       id: 'labels',
       data: [
-        ...(scenario.ports ?? [])
+        ...ports
           .filter((p) => Math.hypot(p.lon - ship.pos[0], p.lat - ship.pos[1]) > 1.5)
           .map((p) => ({ pos: [p.lon, p.lat], text: p.name.toUpperCase(), color: [224, 242, 254, 200], size: 11, off: [10, 0] })),
         ...legs
@@ -186,6 +222,8 @@ export default function Theater() {
         ...alts.map((a) => ({ pos: a.pos, text: a.label.toUpperCase(), color: a.enabled ? [148, 163, 184, 230] : [196, 181, 253, 255], size: 10, off: [0, 20] })),
         ...(area ? [{ pos: offset([area.lon, area.lat], area.radiusKm + 75 * 2 ** (ATLANTIC_VIEW.zoom - view.zoom), 180), text: area.name, color: [251, 113, 133, 255], size: 13, off: [0, 0] }] : []),
         { pos: ship.pos, text: `${scenario.ship.name} ${scenario.ship.hull}`, color: [255, 255, 255, 255], size: 12, off: [16, 22] },
+        // ships in company sit close together: stack their labels in a column beside the group
+        ...fleet.map((f, i) => ({ pos: f.at.pos, text: `${f.name}${f.worst ? ` · ${f.worst.code} ${f.worst.status}` : ''}`, color: rgb(f.color, 235), size: 10.5, off: [60, 40 + i * 14] })),
         ...blind.map((a) => ({ pos: a.labelPos, text: `ARRAY ${a.label} DOWN`, color: [251, 59, 92, 255], size: 10, off: [0, 0] })),
       ],
       getPosition: (d: { pos: number[] }) => d.pos as [number, number, number],
@@ -211,7 +249,7 @@ export default function Theater() {
       <div className="hud flex shrink-0 items-center gap-4 px-3 py-2">
         <div>
           <div className="label !text-[9px] !text-calc/80">Theater · {scenario.mission.name}</div>
-          <div className="font-display text-[14px] font-bold tracking-[0.18em] text-white">MOVEMENT & LOGISTICS PICTURE</div>
+          <div className="font-display text-[14px] font-bold tracking-[0.18em] text-white">MOVEMENT & LOGISTICS PICTURE{fleet.length ? ` · ${fleet.length + 1} SHIPS` : ''}</div>
         </div>
         <Pill color="#2dd4bf">Offline vector basemap · no tile server</Pill>
         <Scrubber />
@@ -231,7 +269,7 @@ export default function Theater() {
             <div className="hud max-w-[440px] px-6 py-5 text-center">
               <div className="label !text-unc">No movement picture for this workflow</div>
               <div className="mt-2 text-[13px] leading-relaxed text-sky-100/80">
-                “{scenario.name}” has no voyage track or movement legs, so there is nothing to place on the map. The engine, graph, horizon and simulation views still run on it.
+                “{scenario.name}” has no voyage track or movement legs, so there is nothing to place on the map. The watch floor, thread and graph still run on it.
               </div>
             </div>
           </div>

@@ -1,0 +1,6 @@
+{
+  "name": "HAWSIR",
+  "tagline": "Mission Consequence Engine",
+  "description": "Mission consequence engine: what a maintenance, supply, personnel or schedule change does to the mission, and what can still be done about it.",
+  "slug": "hawsir"
+}

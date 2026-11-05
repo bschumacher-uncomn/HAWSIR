@@ -1,5 +1,8 @@
-import { upstreamCone, type NodeMap } from '@/engine';
-import type { Domain, NodeKind, ThreadLane, ThreadLink, ThreadSpec, ThreadStep } from '@/engine/types';
+import type { NodeMap } from '@/api/types';
+import { upstreamCone } from '@/lib/graph';
+import { BRAND } from '@/brand';
+import type { Domain, NodeKind } from '@/api/types';
+import type { ThreadLane, ThreadLink, ThreadSpec, ThreadStep } from './types';
 
 const LANES: Record<Domain, Omit<ThreadLane, 'id'>> = {
   logistics: { label: 'Logistics', sub: 'Parts · airlift · pier', color: '#60a5fa' },
@@ -56,7 +59,7 @@ export function autoThread(nodes: NodeMap, capId: string): ThreadSpec | undefine
   if (!order.length) order.push('schedule');
   const lanes: ThreadLane[] = [...new Set<Domain>([...order, 'capability'])].map((d) => ({ id: d, ...LANES[d] }));
 
-  const steps: ThreadStep[] = [{ id: 's__start', kind: 'start', label: 'Plan of record', lane: order[0], col: 0, actor: 'NAVIFI' }];
+  const steps: ThreadStep[] = [{ id: 's__start', kind: 'start', label: 'Plan of record', lane: order[0], col: 0, actor: BRAND.name }];
   const links: ThreadLink[] = [];
   for (const id of ids.sort((a, b) => col[a] - col[b])) {
     const n = nodes[id];

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useMemo } from 'react';
-import type { ShipPart } from '@/engine/types';
-import { fmtT } from '@/engine/time';
+import type { ShipPart } from '@/api/types';
+import { fmtT } from '@/lib/time';
 import { useEngine } from '@/state/engine';
 import { useStore } from '@/state/store';
 import { shipParts, type PartState } from '@/features/ship/shipState';

@@ -1,15 +1,14 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { Check, Link2, Unlink, X } from 'lucide-react';
-import type { AuditEntry } from '@/state/store';
 import { useSize } from '@/lib/useSize';
 import { cn } from '@/lib/util';
-import type { LinkState } from './useChain';
+import type { ChainRow, LinkState } from './useChain';
 
 const BW = 152;
 const GAP = 26;
-export const ACTOR_COLOR: Record<string, string> = { WATCHSTANDER: '#e0f2fe', ENGINE: '#22d3ee', AI: '#a78bfa', SYSTEM: '#94a3b8' };
+export const ACTOR_COLOR: Record<string, string> = { WATCHSTANDER: '#e0f2fe', SOURCE: '#22d3ee', AI: '#a78bfa', SYSTEM: '#94a3b8', PEER: '#fbbf24' };
 
-export function ChainStrip({ audit, states, scan, focusSeq }: { audit: AuditEntry[]; states: LinkState[]; scan: number | null; focusSeq?: number }) {
+export function ChainStrip({ audit, states, scan, focusSeq }: { audit: ChainRow[]; states: LinkState[]; scan: number | null; focusSeq?: number }) {
   const [ref, { w }] = useSize<HTMLDivElement>();
   const count = Math.max(3, Math.floor((w + GAP) / (BW + GAP)));
   const focusIdx = focusSeq !== undefined ? audit.findIndex((e) => e.seq === focusSeq) : -1;

@@ -1,0 +1,89 @@
+{{- if .Values.app.enabled }}
+# mission-api: the only door to the data. Engine, view models, live events and ship ⇄ shore sync.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "hawsir.labels" . | nindent 4 }}
+spec:
+  replicas: 1   # one writer per node database (the logs are hash chains)
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: {{- include "hawsir.selector" (dict "root" . "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "hawsir.labels" . | nindent 8 }}
+        {{- include "hawsir.selector" (dict "root" . "component" "api") | nindent 8 }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: api
+          image: "{{ .Values.images.api.repository }}:{{ .Values.images.api.tag }}"
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          env:
+            - { name: PORT, value: "8820" }
+            - { name: NODE_KIND, value: {{ .Values.node.kind | quote }} }
+            - { name: NODE_ID, value: {{ include "hawsir.nodeId" . | quote }} }
+            {{- if eq .Values.node.kind "ship" }}
+            - { name: NODE_SHIP, value: {{ .Values.node.ship | quote }} }
+            {{- end }}
+            {{- with .Values.node.peerUrl }}
+            - { name: PEER_URL, value: {{ . | quote }} }
+            - { name: INJECT_MODE, value: split }
+            {{- end }}
+            {{- with .Values.node.missions }}
+            - { name: MISSIONS, value: {{ . | quote }} }
+            {{- end }}
+            - { name: DEMO_MODE, value: {{ ternary "1" "0" .Values.node.demo | quote }} }
+            - { name: TRUST_IDENTITY_HEADERS, value: {{ ternary "1" "0" .Values.node.trustIdentityHeaders | quote }} }
+            - { name: DB_CREATE, value: "0" }
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.enabled | ternary (printf "%s-postgres" .Release.Name) .Values.postgres.externalUrlSecret }}
+                  key: DATABASE_URL
+            {{- with .Values.node.syncTokenSecret }}
+            - name: SYNC_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ . }}, key: SYNC_TOKEN } }
+            {{- end }}
+            {{- with (include "hawsir.llmUrl" .) }}
+            - { name: LLM_URL, value: {{ . | quote }} }
+            {{- end }}
+            {{- if or .Values.llm.model .Values.llm.inCluster.enabled }}
+            - { name: LLM_MODEL, value: {{ .Values.llm.inCluster.enabled | ternary .Values.llm.inCluster.model .Values.llm.model | quote }} }
+            {{- end }}
+            {{- with .Values.llm.existingSecret }}
+            - name: LLM_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ . }}, key: LLM_API_KEY } }
+            {{- end }}
+          ports:
+            - { name: http, containerPort: 8820 }
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /api/health, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            failureThreshold: 5
+          resources: {{- toYaml .Values.resources.api | nindent 12 }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: tmp, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-api
+  labels: {{- include "hawsir.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "hawsir.selector" (dict "root" . "component" "api") | nindent 4 }}
+  ports:
+    - { name: http, port: 8820, targetPort: http }
+{{- end }}

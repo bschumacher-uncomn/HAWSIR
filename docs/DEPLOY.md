@@ -1,96 +1,87 @@
-# Deploying NAVIFI
+# Deploying HAWSIR
+
+Two images, one per tier, plus Postgres per node:
+
+| Image | Built from | Runs as | Port |
+|---|---|---|---|
+| `hawsir-web` | `Dockerfile` (repo root) | nginx-unprivileged, uid 101 | 8080 (`/healthz`) |
+| `hawsir-api` | `mission-api/Dockerfile` (repo-root context) | node, non-root | 8820 (`/api/health`, `/api/metrics`) |
+
+Both images build from the repository root, because the web app imports the API's view contract and the API bundles the engine.
 
 ## Local development
 
 ```bash
-pnpm install
-pnpm dev            # web on :5310 (proxies /api), edge node on :8810
-pnpm test           # engine tests
-pnpm typecheck
+pnpm install && npm --prefix mission-api install
+pnpm dev            # mission-api on :8820 (creates database mission_solo), web on http://localhost:5310
 ```
 
-Open http://localhost:5310. Append `?noboot` to skip the boot sequence, `?t=<hours>` to jump the watch clock, `?cap=c_amd` to select a capability.
+A single local node receives every scripted report and serves both missions. For the two-node DDIL story locally, see `mission-deploy/README.md`.
 
-## Production build (single process)
-
-```bash
-pnpm build          # dist/ (UI) + dist-server/index.mjs (self-contained server bundle)
-pnpm start          # serves UI and API on :8810
-```
-
-The server bundle has no runtime `node_modules` dependency.
+## mission-api configuration
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `8810` | Listen port |
-| `NAVIFI_RUNTIME_DIR` | `data/runtime` | Where `audit.jsonl` is appended |
-| `NAVIFI_LLM_URL` | unset | OpenAI-compatible base URL for the narrator (e.g. `http://vllm:8000/v1`). Unset = template narrative |
-| `NAVIFI_LLM_MODEL` | `gpt-4o-mini` | Model name |
-| `NAVIFI_LLM_KEY` | unset | Bearer token if the endpoint needs one |
-| `NODE_NAME` | hostname | Shown on the Edge Platform screen (set from the Kubernetes downward API) |
+| `PORT` | `8820` | HTTP port |
+| `DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/mission_<node>` | This node's database (created on first start unless `DB_CREATE=0`) |
+| `NODE_KIND` | `ship` | `ship` or `shore` |
+| `NODE_SHIP` | `ddgB` | Hull a ship node runs on |
+| `NODE_ID` | `solo`, `shore` or `ship-<hull>` | Node identity in synced records |
+| `PEER_URL` | unset | Ship only: the shore API reached over the data link |
+| `DEMO_PEERS` | unset | Other nodes that receive demo-control commands (clock, link, reset) |
+| `INJECT_MODE` | `all` (`split` with peers) | `split`: each scripted report arrives where it originates |
+| `SIM_SHIPS` | `ddgB` | Ships running their own node (their reports do not arrive ashore directly) |
+| `MISSIONS` | all | Comma-separated mission ids this node serves |
+| `DEMO_MODE` | `1` | `0` = operational: mission clocks follow the wall clock and cannot be moved |
+| `SYNC_TOKEN` | unset | Shared secret for `/api/sync/*` |
+| `TRUST_IDENTITY_HEADERS` | `0` | `1` behind UDS Authservice: read the user from the mesh's ID token |
+| `LLM_URL`, `LLM_MODEL`, `LLM_API_KEY`, `LLM_TIMEOUT_MS` | unset | Optional OpenAI-compatible narrator. Unset = deterministic briefs |
 
-Endpoints: `GET /api/health`, `GET /api/metrics` (Prometheus), `GET|POST /api/audit`, `POST /api/narrate`.
+The web image takes one variable, `API_UPSTREAM` (default `http://mission-api:8820`): the mission-api it proxies `/api` to.
 
-## Container
+## Docker Compose
 
 ```bash
-docker build -t navifi:0.10.0 .
-docker run -p 8810:8810 -v navifi-audit:/data navifi:0.10.0
+cd mission-deploy && docker compose up --build
 ```
 
-UBI9 base by default; pass `BUILD_IMAGE` / `RUNTIME_IMAGE` build args to use Iron Bank images. Runs as UID 1001, read-only root filesystem compatible, health check on `/api/health`.
+This starts a ship node and a shore node, each with its own API, web app and database on one Postgres server. After a schema change, `docker compose down -v` gives a clean start.
 
 ## Kubernetes (RKE2 + UDS Core)
 
 ```bash
-helm install navifi deploy/chart/navifi -n navifi --create-namespace \
-  --set domain=uds.dev
+helm install hawsir deploy/chart/hawsir -n hawsir --create-namespace \
+  --set domain=uds.dev --set node.kind=ship --set node.ship=ddgB \
+  --set node.peerUrl=https://hawsir-shore.example/      # omit for a standalone node
 ```
 
-With `uds.enabled=true` (default) the chart emits a UDS `Package` CR that:
+One release per node. The chart:
 
-- exposes the service on the tenant gateway at `navifi.<domain>`
-- restricts traffic to the namespace (plus port 443 egress only if a shore LLM URL is set)
-- registers a Keycloak SSO client with authservice in front of the UI
-- registers a Prometheus monitor on `/api/metrics`
-
-Optional in-cluster narrator: `--set llm.inCluster.enabled=true` (add `llm.inCluster.gpu=true` on GPU nodes).
+- runs `hawsir-web`, `hawsir-api` (one replica: a single writer per node database) and a Postgres StatefulSet with a generated password Secret. Set `postgres.enabled=false` with `postgres.externalUrlSecret` to use an existing database;
+- emits a UDS `Package` CR that exposes the web app at `hawsir.<domain>` with Keycloak SSO via Authservice. It also allows intra-namespace traffic, ship → shore sync egress (ship) or sync ingress (shore), and a Prometheus monitor on `/api/metrics`;
+- runs every container non-root with all capabilities dropped and a read-only root filesystem (emptyDirs where nginx and Postgres need to write);
+- optionally renders the in-cluster vLLM narrator (`llm.inCluster.enabled=true`).
 
 ## Air-gapped (Zarf + UDS bundle)
 
-Pier side, connected:
-
 ```bash
 zarf package create . --confirm
-uds create . --confirm
+uds create . --confirm                                     # pier side, connected
+uds deploy uds-bundle-hawsir-ship-amd64-0.11.0.tar.zst --confirm   # aboard
 ```
 
-Aboard, disconnected:
-
-```bash
-uds deploy uds-bundle-navifi-ship-amd64-0.10.0.tar.zst --confirm
-```
-
-The bundle carries Zarf init, UDS Core and NAVIFI. The optional `narrator` component ships model weights inside the package, so nothing is downloaded at sea.
+The bundle carries Zarf init, UDS Core and HAWSIR (web, API, Postgres images). The optional `narrator` component ships its model weights inside the package, so nothing is downloaded at sea. Zarf variables: `DOMAIN`, `NODE_KIND`, `NODE_SHIP`, `PEER_URL`, `DATA_STORAGE`.
 
 ## Compliance evidence
 
-```bash
-pnpm oscal                                         # regenerate compliance/oscal-component.yaml
-lula validate -f compliance/oscal-component.yaml   # against a running cluster
-```
-
-The control list lives in `src/data/platform.ts`, the same source the Edge Platform screen renders. CI fails if the generated OSCAL file drifts from it.
+`compliance/oscal-component.yaml` is generated from the control list the Edge screen shows (`pnpm oscal`), so the two can't drift apart. CI fails if they differ. Lula validates three controls against a live cluster: pods non-root, namespace in the mesh, data volume bound.
 
 ## CI/CD
 
-`.github/workflows/ci.yml` (and the `.gitlab-ci.yml` mirror):
+`.github/workflows/ci.yml`, mirrored in `.gitlab-ci.yml`:
 
-1. **AI review** (pull requests, advisory): `ci/ai-review.mjs` sends the diff to `AI_REVIEW_URL`; findings land in the job summary. Never blocks unless `AI_REVIEW_BLOCKING=1`; never approves.
-2. **Test**: typecheck, engine tests, build, OSCAL drift check.
-3. **SAST**: Semgrep.
-4. **Image**: build, Syft SBOM, Grype gate on high/critical, cosign keyless signature and SBOM attestation.
-5. **Compliance**: deploy to UDS k3d, `lula validate`, publish OSCAL assessment results.
-6. **Bundle** (tags): Zarf package and UDS bundle as release artifacts.
-
-Pin third-party actions to commit SHAs before using this in an accredited factory.
+1. AI review (advisory only; a human approves every merge).
+2. Engine tests, mission-api tests against a Postgres service, then web typecheck, tests and build.
+3. Semgrep.
+4. Both images: SBOM (Syft), CVE gate (Grype), keyless signing (cosign).
+5. On main and tags: deploy to UDS k3d and run Lula validation. Tags also produce the air-gap bundle.

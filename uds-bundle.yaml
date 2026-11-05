@@ -1,12 +1,12 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/defenseunicorns/uds-cli/main/uds.schema.json
-# One file to carry aboard: Zarf init + UDS Core + NAVIFI.
+# One file to carry aboard: Zarf init + UDS Core + HAWSIR.
 #   uds create .            (pier side, connected)
-#   uds deploy uds-bundle-navifi-ship-amd64-0.10.0.tar.zst   (aboard, air-gapped)
+#   uds deploy uds-bundle-hawsir-ship-amd64-0.11.0.tar.zst   (aboard, air-gapped)
 kind: UDSBundle
 metadata:
-  name: navifi-ship
+  name: hawsir-ship
   description: Shipboard decision-support bundle on RKE2
-  version: 0.10.0
+  version: 0.11.0
 
 packages:
   - name: init
@@ -17,15 +17,18 @@ packages:
     repository: ghcr.io/defenseunicorns/packages/uds/core
     ref: 0.29.1-registry1
 
-  - name: navifi
+  - name: hawsir
     path: ./
-    ref: 0.10.0
+    ref: 0.11.0
     optionalComponents:
       - narrator
     overrides:
-      navifi:
-        navifi:
+      hawsir:
+        hawsir:
           variables:
-            - name: NAVIFI_DOMAIN
+            - name: HAWSIR_DOMAIN
               path: domain
               description: Tenant domain aboard this hull
+            - name: HAWSIR_PEER_URL
+              path: node.peerUrl
+              description: Shore mission-api reached over the data link

@@ -1,15 +1,16 @@
-import { ArrowRight, Bot, CalendarClock, CircleCheck, Clock, FileText, Hourglass, TriangleAlert, UserRound, Wrench } from 'lucide-react';
+import { ArrowRight, Bot, CalendarClock, CircleCheck, Clock, Cylinder, FileText, Hourglass, ListChecks, RefreshCw, TriangleAlert, UserRound, Wrench } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Line } from '@/engine';
-import { fmtDur, fmtT } from '@/engine/time';
+import type { Line } from '@/api/types';
+import { BRAND } from '@/brand';
+import { fmtDur, fmtT } from '@/lib/time';
 import { useCapAnalysis, useAnalysisKey } from '@/state/analysis';
 import { useEngine } from '@/state/engine';
 import { useStore } from '@/state/store';
 import { templateBrief, useNarrative } from '@/lib/narrator';
 import { cn, STATUS_COLOR, TONE_HEX } from '@/lib/util';
-import { SourceChip, StatusBadge, Ticker } from '@/components/ui';
+import { MarginValue, SourceChip, StatusBadge } from '@/components/ui';
 import { Typewriter } from '@/components/Typewriter';
 import { OptionCard } from './OptionCard';
 
@@ -46,7 +47,7 @@ function LineRow({ l }: { l: Line }) {
   );
 }
 
-const KIND_ICON = { window: CalendarClock, person: UserRound, input: FileText, duration: Hourglass, crew: UserRound };
+const KIND_ICON = { window: CalendarClock, person: UserRound, input: FileText, duration: Hourglass, crew: UserRound, stock: Cylinder, check: ListChecks };
 
 export function FiveAnswers() {
   const { scenario, cap, focus, nodes, at } = useEngine();
@@ -61,12 +62,19 @@ export function FiveAnswers() {
   const brief = cap && analysis ? templateBrief(scenario, cap, focus, allOptions, analysis.lines) : '';
   const narrative = useNarrative(`${key}|${cap?.id}|${focus?.event.id}`, [...(focus?.lines.map((l) => l.text) ?? []), ...(analysis?.lines.map((l) => l.text) ?? [])], brief);
 
-  if (!cap || !analysis) return null;
+  if (!cap) return null;
+  if (!analysis)
+    return (
+      <section className="hud flex h-full min-h-0 flex-col items-center justify-center gap-2">
+        <RefreshCw size={18} className="animate-spin text-calc" />
+        <span className="label">Computing {cap.code}: slack, options, Monte Carlo…</span>
+      </section>
+    );
   const changeLines = focus?.lines.filter((l) => l.kind === 'change') ?? [];
   const impactLines = focus?.lines.filter((l) => l.kind !== 'change') ?? [];
   const ctlLine = analysis.lines.find((l) => l.kind === 'control');
   const uncLines = analysis.lines.filter((l) => l.kind === 'uncertainty' || l.kind === 'cliff' || l.kind === 'redundancy');
-  const mc = analysis.mc.targets[cap.id];
+  const mc = analysis.mc.targets[cap.id] ?? { pMeet: 0, p10: NaN, p90: NaN };
   const Icon = KIND_ICON[cap.controlling.kind] ?? Wrench;
   const color = STATUS_COLOR[cap.status];
   const isLlm = narrative.source === 'LLM';
@@ -89,7 +97,7 @@ export function FiveAnswers() {
             <span className={cn('font-display text-[10px] font-bold uppercase tracking-[0.2em]', isLlm ? 'text-ai' : 'text-calc')}>
               {isLlm ? 'AI watch brief · advisory' : narrative.source === 'HALTED' ? 'Brief halted' : 'Auto-brief · deterministic template'}
             </span>
-            <span className="ml-auto font-mono text-[9px] text-mute">{isLlm ? 'local LLM · grounded on facts below' : 'LLM not required'}</span>
+            <span className="ml-auto font-mono text-[9px] text-mute">{isLlm ? 'local LLM · every value checked against the facts below' : 'LLM not required'}</span>
           </div>
           <p className={cn('relative text-[12.5px] leading-relaxed', isLlm ? 'text-violet-100/90' : 'text-sky-100/85')}>
             <Typewriter text={narrative.text} />
@@ -132,7 +140,7 @@ export function FiveAnswers() {
                 </div>
                 <ArrowRight size={15} className="text-unc/60 transition group-hover:translate-x-0.5 group-hover:text-unc" />
               </button>
-              {ctlLine && <div className="mt-1.5 text-[12px] leading-snug text-sky-100/80">{ctlLine.text.replace(/^Controlling constraint: [^.]+\.\s*/, '')}</div>}
+              {ctlLine && <div className="mt-1.5 text-[12px] leading-snug text-sky-100/80">{ctlLine.text.replace(`Controlling constraint: ${cap.controlling.label}. `, '')}</div>}
               {cap.coCritical.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <span className="label !text-[9px] !text-orange-300/80">Also binding now</span>
@@ -148,9 +156,9 @@ export function FiveAnswers() {
                   <div key={s.nodeId} className="flex items-center justify-between gap-2 font-mono text-[10.5px]">
                     <span className="truncate text-sky-200/70">{nodes[s.nodeId]?.label}</span>
                     <span className="shrink-0">
-                      <span className={s.noImpact < 1e-6 ? 'text-unc' : 'text-calc'}>slack {s.unbounded ? '∞' : fmtDur(s.noImpact)}</span>
+                      <span className={s.noImpact < 1e-6 ? 'text-unc' : 'text-calc'}>slack {s.unbounded ? 'no limit' : fmtDur(s.noImpact)}</span>
                       <span className="text-mute"> · </span>
-                      <span className={s.toFailure < 0 ? 'text-crit' : 'text-sky-100'}>to fail {s.toFailure >= 0 ? fmtDur(s.toFailure) : s.recoverable ? `need ${fmtDur(-s.toFailure)}` : 'n/a'}</span>
+                      <span className={s.toFailure < 0 ? 'text-crit' : 'text-sky-100'}>to fail {s.toFailure >= 0 ? fmtDur(s.toFailure) : s.recoverable && Number.isFinite(s.toFailure) ? `need ${fmtDur(-s.toFailure)}` : 'n/a'}</span>
                     </span>
                   </div>
                 ))}
@@ -164,7 +172,7 @@ export function FiveAnswers() {
             <StatusBadge status={cap.status} size="xl" pulse />
             <div className="min-w-0 flex-1">
               <div className="label !text-[9px]">Mission margin</div>
-              <Ticker value={cap.margin} format={(v) => (v >= 0 ? fmtDur(v) : `−${fmtDur(-v)}`)} className="font-mono text-[30px] font-bold leading-none text-white" />
+              <MarginValue margin={cap.margin} kind={cap.marginKind} className="font-mono text-[30px] font-bold leading-none text-white" />
               <div className="mt-1 font-mono text-[10.5px] text-mute">
                 ready {fmtT(scenario, cap.ready)} · req {fmtT(scenario, cap.requiredBy)}
               </div>
@@ -203,7 +211,7 @@ export function FiveAnswers() {
             {best.length === 0 && <div className="text-[12px] text-mute">No option in the authorized lever library improves {cap.code} at {fmtT(scenario, at)}.</div>}
           </div>
           <div className="mt-2.5 rounded-[3px] border border-sky-300/10 bg-black/30 px-2 py-1.5 font-mono text-[9.5px] leading-relaxed text-mute">
-            NAVIFI may analyze, explain, alert and propose. It will not issue orders, direct personnel, authorize maintenance, alter tasking, or write to OMMS-NG, R-Supply or NSIPS.
+            {BRAND.name} may analyze, explain, alert and propose. It will not issue orders, direct personnel, authorize maintenance, alter tasking, or write to OMMS-NG, R-Supply or NSIPS.
           </div>
         </Q>
       </div>

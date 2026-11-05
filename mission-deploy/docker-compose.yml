@@ -1,0 +1,90 @@
+# Local HAWSIR stack: one shore node and one shipboard node (Kittredge), each
+# with its own mission-api and web app, sharing one Postgres server with a
+# database per node. Both nodes serve both missions (ATLAS SHIELD, STEEL TIDE).
+#
+#   docker compose up --build        (from HAWSIR/mission-deploy)
+#   ship UI   http://localhost:8080   Kittredge's own node
+#   shore UI  http://localhost:8081   fleet logistics / MOC
+#
+# The "data link" between them is simulated: the ship syncs with the shore every
+# few seconds while its link is up. Drop and restore it from the link control
+# in the header (SATCOM / DDIL / EMCON). After an upgrade that changes the
+# schema, `docker compose down -v` gives a clean start.
+name: hawsir
+
+x-api: &api
+  build:
+    context: ..
+    dockerfile: mission-api/Dockerfile
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+x-web: &web
+  build:
+    context: ..
+    dockerfile: Dockerfile
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "127.0.0.1:5433:5432"
+
+  shore-api:
+    <<: *api
+    environment:
+      NODE_KIND: shore
+      NODE_ID: shore
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/mission_shore
+      INJECT_MODE: split
+      SIM_SHIPS: ddgB
+      DEMO_PEERS: http://ship-api:8820
+      SYNC_TOKEN: ${SYNC_TOKEN:-local-dev-sync-token}
+
+  ship-api:
+    <<: *api
+    environment:
+      NODE_KIND: ship
+      NODE_SHIP: ddgB
+      NODE_ID: ship-ddgb
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/mission_ship_ddgb
+      INJECT_MODE: split
+      PEER_URL: http://shore-api:8820
+      DEMO_PEERS: http://shore-api:8820
+      SYNC_TOKEN: ${SYNC_TOKEN:-local-dev-sync-token}
+
+  ship-web:
+    <<: *web
+    environment:
+      API_UPSTREAM: http://ship-api:8820
+    ports:
+      - "8080:8080"
+    depends_on:
+      ship-api:
+        condition: service_healthy
+
+  shore-web:
+    <<: *web
+    environment:
+      API_UPSTREAM: http://shore-api:8820
+    ports:
+      - "8081:8080"
+    depends_on:
+      shore-api:
+        condition: service_healthy
+
+volumes:
+  pgdata:

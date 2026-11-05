@@ -4,13 +4,17 @@ import { GeoJsonLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer } from '@d
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Box, CloudLightning, Crosshair, FlaskConical, Plane, Radio, Satellite, Ship, User, Users, Warehouse, X, type LucideIcon } from 'lucide-react';
-import { fmtDur } from '@/engine/time';
-import type { Readiness } from '@/engine/types';
+import type { FleetId, Issue, MissionSpec } from '@scenarios/fleet/data';
+import type { FleetCatalog, FleetMission, FleetPackage, FleetPicture, FleetShip, PkgTone, ShipStatus } from '@scenarios/fleet/model';
+import { api } from '@/api/client';
+import { useRemote } from '@/api/useRemote';
+import { fmtDur } from '@/lib/time';
+import type { Readiness } from '@/api/types';
 import { useStore } from '@/state/store';
 import { Panel, StatusBadge, Ticker } from '@/components/ui';
 import { cn, STATUS_COLOR, STATUS_WORD } from '@/lib/util';
-import { CAP_LABEL, DISRUPTIONS, FLEET_NAME, MISSIONS, PLACES, SHIPS, type FleetId, type Issue, type MissionSpec } from './data';
-import { buildFleet, FLEET_Q, type FleetMission, type FleetPackage, type FleetPicture, type FleetShip, type PkgTone, type ShipStatus } from './model';
+import { CatalogContext, useCatalog } from './catalog';
+import { SlipTest } from './SlipTest';
 import { useFleet } from './store';
 import { alongPath, gcArc, gcKm, landDots, OCEAN, type LonLatZ } from './globe';
 import { GRATICULE, LAND, offset, ring, type LonLat } from '@/features/theater/geo';
@@ -21,8 +25,8 @@ const TONE_HEX: Record<PkgTone, string> = { crit: '#fb3b5c', risk: '#fbbf24', ok
 const SHIP_HEX: Record<ShipStatus, string> = { ...STATUS_COLOR, M: '#64748b' };
 const KIND_ICON: Record<Issue['kind'], LucideIcon> = { part: Box, person: User, data: Radio };
 const DISRUPT_ICON: Record<string, LucideIcon> = { amc: Plane, suez: Ship, typhoon: CloudLightning, dla: Warehouse, nsips: Users, satcom: Satellite };
-const RANK: Record<Readiness, number> = { Y: 0, Q: 1, N: 2 };
-const DETAIL_SCENARIO: Record<string, string> = { 'DDG-170': 'ddg21', 'DDG-173': 'reload72' };
+const RANK: Record<Readiness, number> = { Y: 0, Q: 1, UNK: 2, N: 3 };
+const DETAIL_SCENARIO: Record<string, string> = { 'DDG-170': 'atlas-shield' };
 
 const near = (from: number, to: number) => to + 360 * Math.round((from - to) / 360);
 const unit = ([lon, lat]: LonLat): [number, number, number] => {
@@ -95,6 +99,7 @@ const FleetGlobe = memo(function FleetGlobe({
   onShip: (hull: string) => void;
   onMission: (id: string) => void;
 }) {
+  const { missions: MISSIONS, places: PLACES, fleets: FLEET_NAME } = useCatalog();
   const wrap = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1600, h: 900 });
   const h = size.h;
@@ -431,7 +436,7 @@ const FleetGlobe = memo(function FleetGlobe({
 function Margin({ status, margin, className }: { status: Readiness; margin: number; className?: string }) {
   return (
     <span className={cn('font-mono font-bold tabular', className)} style={{ color: STATUS_COLOR[status] }}>
-      {Number.isFinite(margin) ? fmtDur(margin, { signed: true }) : 'NO WINDOW'}
+      {Number.isFinite(margin) ? fmtDur(margin, { signed: true }) : margin > 0 ? 'NO LIMIT' : 'NEVER'}
     </span>
   );
 }
@@ -457,6 +462,7 @@ function ShipDot({ status }: { status: ShipStatus }) {
 }
 
 function PackageRow({ p, onClick, showHull }: { p: FleetPackage; onClick?: () => void; showHull?: boolean }) {
+  const { disruptions: DISRUPTIONS } = useCatalog();
   const Icon = KIND_ICON[p.kind];
   const col = TONE_HEX[p.tone];
   return (
@@ -492,6 +498,7 @@ function PackageRow({ p, onClick, showHull }: { p: FleetPackage; onClick?: () =>
 }
 
 function MissionDetail({ m, pic, onShip }: { m: FleetMission; pic: FleetPicture; onShip: (h: string) => void }) {
+  const { capLabels: CAP_LABEL } = useCatalog();
   const hulls = new Set(m.spec.reqs.flatMap((r) => r.ships));
   const pkgs = pic.packages.filter((p) => hulls.has(p.hull) && !p.routine).sort((a, b) => a.slack - b.slack);
   const ctl = m.controlling;
@@ -572,6 +579,7 @@ function MissionDetail({ m, pic, onShip }: { m: FleetMission; pic: FleetPicture;
 }
 
 function ShipDetail({ s, onBack, backLabel }: { s: FleetShip; onBack: () => void; backLabel: string }) {
+  const { missions: MISSIONS } = useCatalog();
   const navigate = useNavigate();
   const setScenario = useStore((x) => x.setScenario);
   const scen = DETAIL_SCENARIO[s.spec.hull];
@@ -633,6 +641,7 @@ function ShipDetail({ s, onBack, backLabel }: { s: FleetShip; onBack: () => void
 }
 
 function FleetSummary({ pic, onShip }: { pic: FleetPicture; onShip: (h: string) => void }) {
+  const { fleets: FLEET_NAME } = useCatalog();
   const fleets = Object.keys(FLEET_NAME) as FleetId[];
   const atRisk = pic.packages.filter((p) => !p.routine && p.tone !== 'ok').sort((a, b) => a.slack - b.slack);
   return (
@@ -672,9 +681,28 @@ function FleetSummary({ pic, onShip }: { pic: FleetPicture; onShip: (h: string) 
 }
 
 export default function Fleet() {
+  const catalog = useRemote<FleetCatalog>('fleet|catalog', () => api.get('/fleet/catalog')).data;
+  const active = useFleet((f) => f.active);
+  const base = useRemote<FleetPicture>('fleet|', () => api.get('/fleet')).data;
+  const key = [...active].sort().join(',');
+  const live = useRemote<FleetPicture>(`fleet|${key}`, () => api.get(`/fleet?active=${encodeURIComponent(key)}`));
+  if (!catalog || !base || !live.data) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <span className="label animate-blink !text-calc">Computing the fleet picture on the node…</span>
+      </div>
+    );
+  }
+  return (
+    <CatalogContext.Provider value={catalog}>
+      <FleetScreen base={base} pic={live.data} computing={live.loading} />
+    </CatalogContext.Provider>
+  );
+}
+
+function FleetScreen({ base, pic, computing }: { base: FleetPicture; pic: FleetPicture; computing: boolean }) {
+  const { disruptions: DISRUPTIONS, ships: SHIPS, q: FLEET_Q } = useCatalog();
   const { active, mission, ship, toggle, clearDisruptions, selectMission, selectShip } = useFleet();
-  const base = useMemo(() => buildFleet([]), []);
-  const pic = useMemo(() => (active.length ? buildFleet(active) : base), [active, base]);
   const baseStatus = useMemo(() => new Map(base.missions.map((m) => [m.spec.id, m.status])), [base]);
   const sorted = useMemo(() => [...pic.missions].sort((a, b) => RANK[b.status] - RANK[a.status] || a.margin - b.margin), [pic]);
   const selMission = mission ? pic.missions.find((m) => m.spec.id === mission) : undefined;
@@ -707,7 +735,7 @@ export default function Fleet() {
       <div className="pointer-events-none absolute left-3 top-3 w-[360px]">
         <div className="hud pointer-events-auto px-3 py-2">
           <div className="label !text-[9px] !text-calc/80">
-            <span className="mr-1.5 rounded-[2px] border border-dashed border-ai/60 px-1 text-ai">LABS</span>Global fleet picture · synthetic data
+            <span className="mr-1.5 rounded-[2px] border border-dashed border-ai/60 px-1 text-ai">LAB</span>Global fleet picture · synthetic data
           </div>
           <div className="font-display text-[15px] font-bold tracking-[0.18em] text-white">FLEET MISSION CONSEQUENCES</div>
           <div className="mt-1 flex flex-wrap gap-x-3 font-mono text-[10px] text-sky-200/70">
@@ -721,13 +749,13 @@ export default function Fleet() {
               <b className="text-white">{pic.packages.length}</b> PACKAGES
             </span>
             <span className="text-calc">
-              ENGINE {pic.ms.toFixed(0)} ms · {pic.packages.length} slack searches
+              {computing ? 'COMPUTING…' : `ENGINE ${pic.graphs} graphs · ${pic.ms.toFixed(0)} ms on the node`}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="absolute bottom-3 left-3 top-[92px] w-[360px]">
+      <div className="absolute bottom-[188px] left-3 top-[92px] w-[360px]">
         <Panel title="Missions · worst first" index="FLT-1" className="h-full" bodyClass="space-y-1 overflow-y-auto p-2" right={mission && <button type="button" onClick={() => selectMission(null)} className="flex items-center gap-1 font-mono text-[10px] text-mute hover:text-sky-100"><X size={11} /> GLOBE</button>}>
           {sorted.map((m) => {
             const was = baseStatus.get(m.spec.id)!;
@@ -772,6 +800,10 @@ export default function Fleet() {
             );
           })}
         </Panel>
+      </div>
+
+      <div className="absolute bottom-3 left-3 h-[172px] w-[360px]">
+        <SlipTest />
       </div>
 
       <div className="absolute bottom-3 right-3 top-3 flex w-[390px] flex-col gap-3">
@@ -825,7 +857,7 @@ export default function Fleet() {
                 </div>
               ))}
               <div className="pt-1 font-mono text-[9.5px] leading-snug text-ai/80">
-                Sandbox only. {pic.packages.filter((p) => p.hits.length).length} packages re-timed through the same engine; no authoritative record changes. Logged to the decision log.
+                Sandbox only. {pic.packages.filter((p) => p.hits.length).length} packages re-timed through the same engine; no authoritative record changes.
               </div>
             </div>
           )}

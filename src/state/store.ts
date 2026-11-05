@@ -1,58 +1,30 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { scenarioById } from '@/data/scenarios';
-import { entryHash, GENESIS } from '@/lib/audit';
+import { BRAND } from '@/brand';
 
-export { entryHash, GENESIS, verifyChain } from '@/lib/audit';
-
+/**
+ * UI state only. Everything authoritative (facts, decisions, STOP, the data
+ * link, the audit chain) lives in mission-api; this store holds what the
+ * screen is looking at and what the user is exploring.
+ */
 export type LinkMode = 'SATCOM' | 'DDIL' | 'DENIED';
-export type Actor = 'SYSTEM' | 'WATCHSTANDER' | 'ENGINE' | 'AI';
-
-export interface AuditEntry {
-  seq: number;
-  wall: string;
-  t: number;
-  actor: Actor;
-  action: string;
-  detail: string;
-  data?: unknown;
-  prev: string;
-  hash: string;
-  shoreSynced: boolean;
-}
-
-export interface Decision {
-  id: string;
-  leverIds: string[];
-  title: string;
-  decision: 'APPROVED' | 'REJECTED' | 'REVOKED';
-  by: string;
-  t: number;
-  wall: string;
-  note?: string;
-  targetCap: string;
-  marginBefore: number;
-  marginAfter: number;
-}
 
 interface State {
   booted: boolean;
   scenarioId: string;
+  /** Watch time being viewed (scenario hours); NaN until the mission's default is known. */
   watchTime: number;
   playing: boolean;
   speed: number;
   selectedCap: string;
   selectedNode: string | null;
   focusEventId: string | null;
+  /** What-if slips (hours) by node id. Never written anywhere. */
   shifts: Record<string, number>;
-  approved: string[];
-  decisions: Decision[];
-  link: LinkMode;
-  halted: boolean;
-  haltReason: string;
-  audit: AuditEntry[];
   watchOfficer: string;
   llmEnabled: boolean;
+  /** Bumped whenever the API reports a change, so views refetch. */
+  version: number;
 
   setBooted: (b: boolean) => void;
   setScenario: (id: string) => void;
@@ -64,61 +36,28 @@ interface State {
   focusEvent: (id: string | null) => void;
   setShift: (id: string, delta: number) => void;
   clearShifts: () => void;
-  decide: (d: Omit<Decision, 'id' | 'wall' | 'by'>) => void;
-  revoke: (leverId: string) => void;
-  setLink: (m: LinkMode) => void;
-  halt: (reason: string) => void;
-  resume: (reason: string) => void;
-  log: (actor: Actor, action: string, detail: string, data?: unknown) => void;
-  markShoreSynced: (n: number) => void;
-  tamper: () => void;
-  restoreEntry: (seq: number, original: Pick<AuditEntry, 'detail' | 'data'>) => void;
-  resetSession: () => void;
   setLlm: (on: boolean) => void;
+  bump: () => void;
 }
-
-const defaultWatch = (id: string) => {
-  const s = scenarioById(id);
-  const last = s.events[s.events.length - 1];
-  return s.timeScale === 'hours' ? s.watchStart : last.t + 1;
-};
-
-const defaultCap = (id: string) => {
-  const caps = scenarioById(id).nodes.filter((n) => n.kind === 'capability');
-  return (caps.find((n) => n.code === 'AMD') ?? caps[0])?.id ?? '';
-};
-
-const postAudit = (e: AuditEntry) => {
-  fetch('/api/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) }).catch(() => undefined);
-};
 
 export const useStore = create<State>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       booted: false,
-      scenarioId: 'ddg21',
-      watchTime: defaultWatch('ddg21'),
+      scenarioId: 'atlas-shield',
+      watchTime: NaN,
       playing: false,
       speed: 6,
-      selectedCap: 'c_amd',
+      selectedCap: '',
       selectedNode: null,
       focusEventId: null,
       shifts: {},
-      approved: [],
-      decisions: [],
-      link: 'SATCOM',
-      halted: false,
-      haltReason: '',
-      audit: [],
       watchOfficer: 'LT J. Cole (OOD/TAO)',
       llmEnabled: true,
+      version: 0,
 
       setBooted: (booted) => set({ booted }),
-      setScenario: (id) => {
-        const s = scenarioById(id);
-        set({ scenarioId: id, watchTime: defaultWatch(id), shifts: {}, approved: [], selectedNode: null, focusEventId: null, selectedCap: defaultCap(id) });
-        get().log('WATCHSTANDER', 'SCENARIO_LOAD', `Loaded workflow "${s.name}"`, { id });
-      },
+      setScenario: (id) => set({ scenarioId: id, watchTime: NaN, playing: false, shifts: {}, selectedNode: null, focusEventId: null, selectedCap: '' }),
       setWatchTime: (t) => set({ watchTime: t }),
       setPlaying: (playing) => set({ playing }),
       setSpeed: (speed) => set({ speed }),
@@ -127,98 +66,14 @@ export const useStore = create<State>()(
       focusEvent: (focusEventId) => set({ focusEventId }),
       setShift: (id, delta) => set((st) => ({ shifts: { ...st.shifts, [id]: delta } })),
       clearShifts: () => set({ shifts: {} }),
-      decide: (d) => {
-        const st = get();
-        const dec: Decision = { ...d, id: `DEC-${String(st.decisions.length + 1).padStart(4, '0')}`, wall: new Date().toISOString(), by: st.watchOfficer };
-        set({
-          decisions: [...st.decisions, dec],
-          approved: d.decision === 'APPROVED' ? [...new Set([...st.approved, ...d.leverIds])] : st.approved,
-        });
-        get().log('WATCHSTANDER', `COA_${d.decision}`, `${d.title}${d.note ? ` | note: ${d.note}` : ''}`, {
-          leverIds: d.leverIds,
-          targetCap: d.targetCap,
-          marginBefore: d.marginBefore,
-          marginAfter: d.marginAfter,
-        });
-      },
-      revoke: (leverId) => {
-        set((st) => ({ approved: st.approved.filter((x) => x !== leverId) }));
-        get().log('WATCHSTANDER', 'COA_REVOKED', `Planning assumption ${leverId} revoked`, { leverId });
-      },
-      setLink: (link) => {
-        if (get().link === link) return;
-        set({ link });
-        get().log('SYSTEM', 'LINK_STATE', `Shore link now ${link}`, { link });
-      },
-      halt: (reason) => {
-        set({ halted: true, haltReason: reason, playing: false });
-        get().log('WATCHSTANDER', 'AGENT_STOP', `STOP invoked: ${reason}`);
-      },
-      resume: (reason) => {
-        set({ halted: false, haltReason: '' });
-        get().log('WATCHSTANDER', 'AGENT_RESUME', `Resumed by watchstander: ${reason}`);
-      },
-      log: (actor, action, detail, data) => {
-        const st = get();
-        const prev = st.audit.length ? st.audit[st.audit.length - 1].hash : GENESIS;
-        const base = { seq: st.audit.length + 1, wall: new Date().toISOString(), t: st.watchTime, actor, action, detail, data, prev };
-        const entry: AuditEntry = { ...base, hash: entryHash(base), shoreSynced: false };
-        set({ audit: [...st.audit, entry] });
-        postAudit(entry);
-      },
-      markShoreSynced: (n) =>
-        set((st) => {
-          let left = n;
-          return { audit: st.audit.map((e) => (!e.shoreSynced && left-- > 0 ? { ...e, shoreSynced: true } : e)) };
-        }),
-      tamper: () =>
-        set((st) => {
-          if (st.audit.length < 3) return {};
-          const i = Math.floor(st.audit.length / 2);
-          const audit = st.audit.map((e, k) => (k === i ? { ...e, detail: e.detail + ' [edited]' } : e));
-          return { audit };
-        }),
-      restoreEntry: (seq, original) => {
-        set((st) => ({ audit: st.audit.map((e) => (e.seq === seq ? { ...e, detail: original.detail, data: original.data } : e)) }));
-        get().log('SYSTEM', 'AUDIT_RESTORED', `Entry #${seq} restored from edge copy (hash match)`, { seq });
-      },
-      resetSession: () => {
-        const s = scenarioById(get().scenarioId);
-        set({
-          audit: [],
-          decisions: [],
-          approved: [],
-          shifts: {},
-          halted: false,
-          haltReason: '',
-          playing: false,
-          link: 'SATCOM',
-          watchTime: defaultWatch(s.id),
-          selectedCap: defaultCap(s.id),
-          selectedNode: null,
-          focusEventId: null,
-        });
-        get().log('SYSTEM', 'SESSION_RESET', `New session on "${s.name}"; prior planning assumptions and log cleared locally (edge copy retained)`);
-      },
       setLlm: (llmEnabled) => set({ llmEnabled }),
+      bump: () => set((st) => ({ version: st.version + 1 })),
     }),
     {
-      name: 'navifi-session',
-      merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<State>;
-        const id = scenarioById(p.scenarioId ?? current.scenarioId).id;
-        return { ...current, ...p, scenarioId: id, watchTime: defaultWatch(id), selectedCap: defaultCap(id) };
-      },
-      partialize: (s) => ({
-        scenarioId: s.scenarioId,
-        approved: s.approved,
-        decisions: s.decisions,
-        audit: s.audit,
-        watchOfficer: s.watchOfficer,
-        llmEnabled: s.llmEnabled,
-      }),
+      name: `${BRAND.slug}-ui`,
+      partialize: (s) => ({ scenarioId: s.scenarioId, watchOfficer: s.watchOfficer, llmEnabled: s.llmEnabled, speed: s.speed }),
     },
   ),
 );
 
-if (import.meta.env.DEV) (window as unknown as { __navifi: typeof useStore }).__navifi = useStore;
+if (import.meta.env.DEV && typeof window !== 'undefined') (window as unknown as Record<string, unknown>)[`__${BRAND.slug}`] = useStore;

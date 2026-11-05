@@ -1,7 +1,7 @@
 import { animate, motion, useMotionValue, useTransform } from 'motion/react';
 import { useEffect, type ReactNode } from 'react';
-import type { QualityFlag, Readiness, SourceRef } from '@/engine/types';
-import { dtg } from '@/engine/time';
+import type { MarginKind, QualityFlag, Readiness, SourceRef } from '@/api/types';
+import { dtg, fmtDur, fmtMargin } from '@/lib/time';
 import { useEngine } from '@/state/engine';
 import { cn, FLAG_META, STATUS_COLOR, STATUS_WORD } from '@/lib/util';
 
@@ -92,6 +92,19 @@ export function Ticker({ value, format, className }: { value: number; format: (v
     return () => ctl.stop();
   }, [value, mv]);
   return <motion.span className={cn('tabular', className)}>{text}</motion.span>;
+}
+
+/** A margin as a number when it is one; "≥ 8d 0h" when nothing in the horizon limits it; NEVER when there is no path. */
+export function MarginValue({ margin, kind, className }: { margin: number; kind: MarginKind; className?: string }) {
+  if (kind !== 'exact' || !Number.isFinite(margin)) {
+    const title = kind === 'never' ? 'No path to this capability inside the planning horizon' : kind === 'unknown' ? 'Required information is missing; the engine will not guess' : 'Up now, and nothing inside the planning horizon takes it down';
+    return (
+      <span className={cn('tabular', className)} title={title}>
+        {fmtMargin(margin, kind)}
+      </span>
+    );
+  }
+  return <Ticker value={margin} format={(v) => (v >= 0 ? fmtDur(v) : `−${fmtDur(-v)}`)} className={className} />;
 }
 
 export function Kv({ k, v, className }: { k: ReactNode; v: ReactNode; className?: string }) {
