@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { consequenceCurve, findCliffs, slackFor, slackTable, tornado } from '../src/core/analysis';
 import { compute } from '../src/core/compute';
 import type { GraphSpec } from '../src/core/graph';
-import { runMonteCarlo } from '../src/core/montecarlo';
+import { mcBatch, runMonteCarlo } from '../src/core/montecarlo';
 import { evaluateOptions, type Lever } from '../src/core/options';
 import { RoutineRegistry } from '../src/core/routines';
 
@@ -78,6 +78,15 @@ describe('Monte Carlo', () => {
     expect(a).toEqual(b);
     expect(a.requirements.req.pN).toBeGreaterThan(0);
     expect(a.requirements.req.controlling.team).toBeGreaterThan(0.5);
+  });
+
+  it('batches of one seed are the same futures however they are chunked', () => {
+    const whole = mcBatch(classic, ctx, ['req'], 42, 0, 300);
+    const parts = [mcBatch(classic, ctx, ['req'], 42, 0, 100), mcBatch(classic, ctx, ['req'], 42, 100, 120), mcBatch(classic, ctx, ['req'], 42, 220, 80)];
+    expect(parts.flatMap((p) => p.targets.req.margins)).toEqual(whole.targets.req.margins);
+    expect(parts.reduce((s, p) => s + p.targets.req.status.N, 0)).toBe(whole.targets.req.status.N);
+    const mc = runMonteCarlo(classic, ctx, ['req'], 300, 42);
+    expect(whole.targets.req.status.N / 300).toBeCloseTo(mc.requirements.req.pN, 9);
   });
 });
 

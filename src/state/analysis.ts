@@ -1,6 +1,6 @@
 import { api } from '@/api/client';
 import { useRemote } from '@/api/useRemote';
-import type { CapAnalysis, NodeAnalysis } from '@/api/types';
+import type { CapAnalysis, NodeAnalysis, SensitivityBar } from '@/api/types';
 import { useEngine, viewTimeFor } from './engine';
 import { useStore } from './store';
 
@@ -10,7 +10,7 @@ import { useStore } from './store';
  * Carlo take longer than a picture, so they refresh when the story moves on,
  * not on every replay frame.
  */
-function useAnalysisAt(): number {
+export function useAnalysisAt(): number {
   const { scenario, snapshot } = useEngine();
   return Math.min(snapshot.at, viewTimeFor(scenario, snapshot.at, true));
 }
@@ -30,6 +30,18 @@ export function useCapAnalysis(capId: string | undefined): CapAnalysis | undefin
   const at = useAnalysisAt();
   const r = useRemote<CapAnalysis>(capId ? `${key}|cap|${capId}` : null, () => api.get(`/m/${snapshot.mission}/analysis/${encodeURIComponent(capId!)}?at=${at}`));
   return r.data && r.dataKey?.endsWith(`|cap|${capId}`) ? r.data : undefined;
+}
+
+/** Margin of one capability with each uncertain input at the ends of its range (what-ifs applied). */
+export function useSensitivity(capId: string | undefined): SensitivityBar[] | undefined {
+  const { snapshot, whatIfActive } = useEngine();
+  const shifts = useStore((s) => s.shifts);
+  const key = useAnalysisKey();
+  const at = useAnalysisAt();
+  const sh = whatIfActive ? Object.fromEntries(Object.entries(shifts).filter(([, v]) => v)) : {};
+  const k = capId ? `${key}|sens|${capId}|${JSON.stringify(Object.entries(sh).sort())}` : null;
+  const r = useRemote<SensitivityBar[]>(k, () => api.post(`/m/${snapshot.mission}/sensitivity`, { at, target: capId, shifts: sh }));
+  return r.data && r.dataKey === k ? r.data : undefined;
 }
 
 /** Slack and consequence curve of one input against one capability. */
