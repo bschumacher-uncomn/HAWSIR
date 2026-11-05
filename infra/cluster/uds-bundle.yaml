@@ -1,0 +1,166 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/defenseunicorns/uds-cli/v0.41.0/uds.schema.json
+kind: UDSBundle
+metadata:
+  name: navifi-lab-platform
+  description: UDS Core on one RKE2 node behind an AWS ALB, trimmed for 8 vCPU / 32 GiB
+  version: 0.1.0
+
+packages:
+  # Built from ./prereqs by install-core.sh.
+  - name: navifi-lab-prereqs
+    path: build/
+    ref: 0.1.0
+
+  - name: init
+    repository: ghcr.io/zarf-dev/packages/init
+    ref: v0.89.0
+    keylessVerification:
+      certificateIdentityRegexp: ^https://github\.com/zarf-dev/zarf/\.github/workflows/release\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$
+      certificateOIDCIssuer: https://token.actions.githubusercontent.com
+
+  # Required components only. Left off: passthrough and egress gateways, Envoy
+  # Gateway, and metrics-server (RKE2 ships its own).
+  - name: core
+    repository: registry.defenseunicorns.com/public/core
+    ref: 1.14.3-upstream
+    keylessVerification:
+      certificateIdentityRegexp: ^https://github\.com/defenseunicorns/uds-core/\.github/workflows/publish\.yaml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$
+      certificateOIDCIssuer: https://token.actions.githubusercontent.com
+    overrides:
+      # ---------------------------------------------------------- policy
+      pepr-uds-core:
+        module:
+          values:
+            # The storage prerequisites deploy before UDS Core and are plain upstream
+            # charts: local-path helper pods mount hostPath, and MinIO's bucket setup
+            # job sets no security context. MinIO has its own NetworkPolicy instead
+            # (prereqs/manifests/minio-network-policy.yaml).
+            - path: additionalIgnoredNamespaces
+              value: [local-path-storage, uds-storage]
+            # Sizing: these trims, and the replica counts further down, are the
+            # ones Defense Unicorns' own k3d demo bundle applies.
+            - path: watcher.resources.requests.cpu
+              value: 200m
+            - path: watcher.resources.requests.memory
+              value: 256Mi
+            - path: admission.resources.requests.cpu
+              value: 200m
+            - path: admission.resources.requests.memory
+              value: 256Mi
+
+      uds-exemptions:
+        uds-exemptions:
+          values:
+            # UDS Core's built-in exemption for NodePort gateway Services.
+            - path: exemptions.istioGatewayNodeport.enabled
+              value: true
+
+      # ---------------------------------------------------------- ingress
+      # Browsers come through the ALB, which terminates TLS and forwards to each
+      # gateway's plain-HTTP NodePort; the status port answers its health checks.
+      # The NodePorts must match local.gateways in infra/terraform/main.tf.
+      #
+      # Pods reach the same hosts without leaving the cluster: UDS Core routes
+      # them to the gateway's HTTPS port (Grafana and Authservice call Keycloak
+      # at sso.<domain> this way). That port keeps its random NodePort, which the
+      # node's security group blocks, and serves a certificate for the lab domain
+      # that install-core.sh generates and adds to the cluster trust bundle.
+      istio-controlplane:
+        istiod:
+          values:
+            # One proxy (the ALB) sits in front of the gateways.
+            - path: meshConfig.defaultConfig.gatewayTopology.numTrustedProxies
+              value: 1
+
+      istio-tenant-gateway:
+        gateway:
+          values:
+            - path: service.type
+              value: NodePort
+            - path: service.ports
+              value:
+                - { name: status-port, protocol: TCP, port: 15021, targetPort: 15021, nodePort: 30021 }
+                - { name: http2, protocol: TCP, port: 80, targetPort: 80, nodePort: 30080 }
+                - { name: https, protocol: TCP, port: 443, targetPort: 443 }
+        uds-istio-config:
+          values:
+            - path: tls.servers.keycloak.enableHttpsRedirect
+              value: false
+            - path: tls.servers.tenant.enableHttpsRedirect
+              value: false
+          variables:
+            - name: TENANT_TLS_CERT
+              description: Certificate chain for in-cluster HTTPS to the tenant gateway
+              path: tls.cert
+            - name: TENANT_TLS_KEY
+              description: Key for TENANT_TLS_CERT
+              path: tls.key
+              sensitive: true
+
+      istio-admin-gateway:
+        gateway:
+          values:
+            - path: service.type
+              value: NodePort
+            - path: service.ports
+              value:
+                - { name: status-port, protocol: TCP, port: 15021, targetPort: 15021, nodePort: 30022 }
+                - { name: http2, protocol: TCP, port: 80, targetPort: 80, nodePort: 30081 }
+                - { name: https, protocol: TCP, port: 443, targetPort: 443 }
+        uds-istio-config:
+          values:
+            - path: tls.servers.keycloak.enableHttpsRedirect
+              value: false
+            - path: tls.servers.admin.enableHttpsRedirect
+              value: false
+          variables:
+            - name: ADMIN_TLS_CERT
+              description: Certificate chain for in-cluster HTTPS to the admin gateway
+              path: tls.cert
+            - name: ADMIN_TLS_KEY
+              description: Key for ADMIN_TLS_CERT
+              path: tls.key
+              sensitive: true
+
+      # ---------------------------------------------------------- storage (MinIO from the prereqs package)
+      loki:
+        loki:
+          values:
+            - path: write.replicas
+              value: 1
+            - path: read.replicas
+              value: 1
+            - path: backend.replicas
+              value: 1
+            - path: loki.storage.bucketNames
+              value: { chunks: loki, admin: loki }
+            - path: loki.storage.s3.endpoint
+              value: http://minio.uds-storage.svc.cluster.local:9000
+            - path: loki.storage.s3.region
+              value: us-east-1
+          variables:
+            - name: STORAGE_ACCESS_KEY
+              description: MinIO user for Loki
+              path: loki.storage.s3.accessKeyId
+            - name: STORAGE_SECRET_KEY
+              description: MinIO secret key for Loki
+              path: loki.storage.s3.secretAccessKey
+              sensitive: true
+        uds-loki-config:
+          values:
+            # Egress to MinIO only, instead of the default "anywhere".
+            - path: storage.internal
+              value: { enabled: true, remoteNamespace: uds-storage, remoteSelector: { app: minio } }
+
+      velero:
+        uds-velero-config:
+          values:
+            - path: storage.internal
+              value: { enabled: true, remoteNamespace: uds-storage, remoteSelector: { app: minio } }
+
+      # ---------------------------------------------------------- sizing
+      falco:
+        falco:
+          values:
+            - path: falcosidekick.replicaCount
+              value: 1

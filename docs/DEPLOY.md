@@ -73,6 +73,10 @@ uds deploy uds-bundle-navifi-ship-amd64-0.10.0.tar.zst --confirm
 
 The bundle carries Zarf init, UDS Core and NAVIFI. The optional `narrator` component ships model weights inside the package, so nothing is downloaded at sea.
 
+## Lab cluster (AWS)
+
+The same stack runs ashore on one EC2 node: RHEL 9, RKE2 and UDS Core behind an ALB, with NAVIFI built and deployed from any git commit. Terraform and the node scripts are in [`infra/`](../infra/README.md).
+
 ## Compliance evidence
 
 ```bash

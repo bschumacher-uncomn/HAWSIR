@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/v0.89.0/zarf.schema.json
+kind: ZarfPackageConfig
+metadata:
+  name: navifi-lab-prereqs
+  description: Default StorageClass and in-cluster S3 that UDS Core expects and RKE2 does not ship
+  version: 0.1.0
+  # Deployed before `zarf init`, because the Zarf registry itself needs a
+  # StorageClass. YOLO packages pull images straight from upstream and must not
+  # list any. `zarf package deploy --connected` would replace this, but a UDS
+  # bundle cannot pass that flag.
+  yolo: true
+
+variables:
+  # All three are set by install-core.sh.
+  - name: MINIO_ROOT_PASSWORD
+    description: MinIO root password (generated on the node)
+    sensitive: true
+  - name: STORAGE_ACCESS_KEY
+    description: MinIO user that Loki and Velero share
+  - name: STORAGE_SECRET_KEY
+    description: Secret key for STORAGE_ACCESS_KEY (generated on the node)
+    sensitive: true
+
+components:
+  - name: local-path-provisioner
+    description: Default StorageClass backed by the node's root volume
+    required: true
+    charts:
+      - name: local-path-provisioner
+        namespace: local-path-storage
+        version: 0.0.37
+        url: https://github.com/rancher/local-path-provisioner.git@v0.0.37
+        gitPath: deploy/chart/local-path-provisioner
+        valuesFiles:
+          - values/local-path-provisioner.yaml
+    actions:
+      onDeploy:
+        after:
+          - description: Keep the Zarf agent from rewriting images in this namespace
+            cmd: ./zarf tools kubectl label namespace local-path-storage zarf.dev/agent=ignore --overwrite
+
+  - name: minio
+    description: Single-replica S3 for Loki log chunks and Velero backups
+    required: true
+    charts:
+      - name: minio
+        namespace: uds-storage
+        version: 5.4.0
+        url: https://charts.min.io/
+        valuesFiles:
+          - values/minio.yaml
+    manifests:
+      - name: minio-network-policy
+        namespace: uds-storage
+        files:
+          - manifests/minio-network-policy.yaml
+    actions:
+      onDeploy:
+        after:
+          - description: Keep the Zarf agent from rewriting images in this namespace
+            cmd: ./zarf tools kubectl label namespace uds-storage zarf.dev/agent=ignore --overwrite

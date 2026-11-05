@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/zarf-dev/zarf/v0.89.0/zarf.schema.json
+#
+# NAVIFI for the lab cluster, built from one git commit by infra/app/deploy.sh.
+# Same Helm chart as the ship package (../../zarf.yaml), with lab values.
+kind: ZarfPackageConfig
+metadata:
+  name: navifi-lab
+  description: NAVIFI on the lab UDS cluster, open to anyone with the URL (SSO off)
+  version: "###ZARF_PKG_TMPL_IMAGE_TAG###"
+  architecture: amd64
+
+variables:
+  - name: DOMAIN
+    description: UDS Core domain. NAVIFI is served at navifi.<domain>.
+    default: uds.dev
+
+constants:
+  # Fixed at package create time, so a package always deploys the image it carries.
+  - name: IMAGE_TAG
+    value: "###ZARF_PKG_TMPL_IMAGE_TAG###"
+
+components:
+  - name: navifi
+    description: Engine, watch floor UI and audit edge copy
+    required: true
+    charts:
+      - name: navifi
+        namespace: navifi
+        localPath: ../../deploy/chart/navifi
+        valuesFiles:
+          - values.yaml
+    images:
+      # Built on the node and not pushed anywhere; Zarf takes it from the local
+      # Docker daemon when the registry lookup fails.
+      - ghcr.io/navifi/navifi:###ZARF_PKG_TMPL_IMAGE_TAG###
+    actions:
+      onDeploy:
+        after:
+          - description: Wait for the edge node to report healthy
+            wait:
+              cluster:
+                kind: Deployment
+                name: navifi
+                namespace: navifi
+                condition: Available

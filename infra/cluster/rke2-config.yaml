@@ -1,0 +1,12 @@
+# /etc/rancher/rke2/config.yaml for the single-node lab server.
+# Installed by infra/cluster/install-rke2.sh.
+write-kubeconfig-mode: "0600"
+
+# RHEL 9 runs SELinux enforcing; the rke2-selinux package supplies the policy.
+selinux: true
+
+# Istio gateways from UDS Core are the only ingress. RKE2's metrics-server stays,
+# which is why the bundle leaves UDS Core's optional metrics-server off.
+disable:
+  - rke2-ingress-nginx
+  - rke2-traefik

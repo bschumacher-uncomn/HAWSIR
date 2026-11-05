@@ -12,3 +12,8 @@ video/out
 deck/build
 deck/out
 *.tsbuildinfo
+infra/terraform/.terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+infra/cluster/build

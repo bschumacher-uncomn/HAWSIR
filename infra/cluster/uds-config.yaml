@@ -1,0 +1,9 @@
+# Non-secret settings for uds-bundle.yaml. install-core.sh supplies the rest as
+# UDS_* environment variables: the domain (from Terraform, via
+# /etc/navifi-lab/lab.env) and the MinIO user that Loki and Velero share, whose
+# secret key is generated on the node.
+variables:
+  core:
+    velero_bucket_provider_url: http://minio.uds-storage.svc.cluster.local:9000
+    velero_bucket: velero
+    velero_bucket_region: us-east-1

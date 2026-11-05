@@ -1,0 +1,28 @@
+# One MinIO for the whole lab. Production UDS Core points Loki and Velero at a
+# cloud object store instead.
+mode: standalone
+replicas: 1
+
+rootUser: minio-root
+rootPassword: "###ZARF_VAR_MINIO_ROOT_PASSWORD###"
+
+persistence:
+  size: 50Gi
+
+# The chart requests 16Gi by default.
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+buckets:
+  - name: loki
+    policy: none
+  - name: velero
+    policy: none
+
+# Replaces the chart's default console/console123 user.
+users:
+  - accessKey: "###ZARF_VAR_STORAGE_ACCESS_KEY###"
+    secretKey: "###ZARF_VAR_STORAGE_SECRET_KEY###"
+    policy: readwrite

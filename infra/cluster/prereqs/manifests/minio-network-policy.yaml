@@ -1,0 +1,18 @@
+# uds-storage is outside UDS Core's policy engine, so it gets the fence a UDS
+# Package would give it: MinIO accepts connections only from its own namespace
+# (the chart's bucket setup job) and from Loki and Velero.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: minio-ingress
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: [loki, velero]

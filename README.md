@@ -61,5 +61,5 @@ Before each run, open `http://localhost:5310/?reset` (or press `Shift+R`) so ear
 - Mission threads (`src/features/thread`): a thread is lanes, steps and links that point at engine nodes. Step times, waits, the critical chain and packet timing all come from `compute`; nothing is animated on a guess. `autoThread` lays out any capability's upstream graph into lanes by domain.
 - Fleet roll-up (`src/labs/fleet`, Labs only): each synthetic hull's issues become an engine graph; a mission needs k of n hulls per capability (a hull counts only if it can also get underway); package slack comes from the same bisection `slackFor` as the watch floor.
 - Four workflows on the same engine, switchable from the header (or `?scenario=`): `mcm` LCS mine-countermeasures approach assessment in 12 hours, `ddg21` DDG readiness 21 days to tasking, `reload72` VLS reload at Souda Bay 72 hours to station, and `classic` the five-input radar repair.
-- [Architecture](docs/ARCHITECTURE.md) · [Deploy](docs/DEPLOY.md)
+- [Architecture](docs/ARCHITECTURE.md) · [Deploy](docs/DEPLOY.md) · [Lab cluster on AWS](infra/README.md) (RHEL 9, RKE2, UDS Core, Terraform)
 - Container: UBI9 or Iron Bank base, non-root, health-checked. Helm chart with a UDS Package CR. Zarf package and UDS bundle for air-gapped hulls. OSCAL component definition with Lula validations.

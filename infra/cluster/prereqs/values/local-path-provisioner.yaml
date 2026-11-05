@@ -1,0 +1,17 @@
+storageClass:
+  defaultClass: true
+  # "local" rather than the chart's default "hostPath": under SELinux, Kubernetes
+  # relabels local volumes for each pod that mounts them, so a restarted pod can
+  # still read what its predecessor wrote. The helper pod that deletes a released
+  # volume is not relabelled, so the directory of a deleted PVC may be left behind.
+  defaultVolumeType: local
+
+# Pinned instead of the chart's busybox:latest.
+helperImage:
+  tag: "1.37.0"
+
+nodePathMap:
+  - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+    paths:
+      # Labelled container_file_t by install-rke2.sh so SELinux lets pods write here.
+      - /opt/local-path-provisioner

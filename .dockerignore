@@ -8,3 +8,4 @@ data/runtime
 dist
 dist-server
 node_modules
+infra

@@ -1,0 +1,15 @@
+# NAVIFI chart values for the lab cluster. Differences from the ship package
+# (deploy/values/zarf-values.yaml): SSO is off so anyone with the URL can open
+# the demo, and the image tag is the commit being deployed.
+domain: "###ZARF_VAR_DOMAIN###"
+
+image:
+  tag: "###ZARF_CONST_IMAGE_TAG###"
+
+uds:
+  enabled: true
+  sso: false
+
+# Template narration only; nothing leaves the cluster.
+llm:
+  url: ""
