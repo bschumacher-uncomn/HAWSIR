@@ -23,11 +23,13 @@
   a.btn.dl svg { width: 14px; height: 14px; }
   kbd { font: 11px/1 ui-monospace, monospace; color: var(--mute); border: 1px solid var(--edge); border-radius: 3px; padding: 2px 4px; margin-left: 6px; }
 
-  #app { display: grid; grid-template-rows: 1fr auto; grid-template-columns: minmax(0, 1fr); height: 100%; }
-  #main { display: grid; grid-template-columns: 1fr auto; min-height: 0; }
-  #stage { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 18px; }
-  #slide { max-width: 100%; max-height: 100%; aspect-ratio: 16 / 9; border-radius: 6px; box-shadow: 0 0 0 1px var(--edge), 0 20px 60px -20px #000;
-    user-select: none; -webkit-user-drag: none; background: #000; }
+  #app { display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100vh; height: 100dvh; }
+  #main { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); min-height: 0; }
+  #stage { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 18px;
+    container-type: size; overflow: hidden; }
+  /* largest 16:9 box that fits the stage both ways */
+  #slide { display: block; width: min(100cqw, 100cqh * 16 / 9); height: auto; aspect-ratio: 16 / 9; border-radius: 6px;
+    box-shadow: 0 0 0 1px var(--edge), 0 20px 60px -20px #000; user-select: none; -webkit-user-drag: none; background: #000; }
   .hit { position: absolute; top: 0; bottom: 0; width: 30%; cursor: pointer; }
   .hit.prev { left: 0; } .hit.next { right: 0; }
 
@@ -39,12 +41,14 @@
   #notes .t { margin: 0 0 14px; font-size: 17px; font-weight: bold; }
   #notes p { margin: 0 0 12px; color: var(--soft); font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
 
-  #bar { display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-top: 1px solid var(--edge); background: rgba(2, 6, 12, .85); }
+  #bar { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-top: 1px solid var(--edge);
+    background: rgba(2, 6, 12, .85); }
   #bar .brand { font-weight: bold; letter-spacing: .08em; } #bar .brand span { color: var(--cyan); }
   #bar .grow { flex: 1; }
   #count { font: 13px ui-monospace, monospace; color: var(--soft); min-width: 64px; text-align: center; }
   #progress { position: fixed; left: 0; bottom: 0; height: 2px; background: var(--cyan); transition: width .2s; }
 
+  body.full #bar { position: fixed; left: 0; right: 0; bottom: 0; }
   body.full #bar, body.full .hit { opacity: 0; transition: opacity .4s; }
   body.full.awake #bar { opacity: 1; }
   body.full #stage { padding: 0; }
@@ -61,7 +65,6 @@
   /* presenter view: ?presenter, opened with P and kept in step with the audience window */
   body.presenter #main { grid-template-columns: 1.6fr 1fr; gap: 18px; padding: 18px; }
   body.presenter #stage { padding: 0; flex-direction: column; gap: 14px; align-items: stretch; justify-content: flex-start; }
-  body.presenter #slide { width: 100%; height: auto; max-height: none; }
   body.presenter .side { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
   body.presenter #notes { width: auto; border: 1px solid var(--edge); border-radius: 6px; flex: 1; }
   body.presenter #notes .in { width: auto; }
@@ -71,8 +74,9 @@
   body.presenter #clock { display: block; font: 28px ui-monospace, monospace; color: var(--cyan); }
   body.presenter .hit { display: none; }
 
-  @media (max-width: 760px) {
-    #bar .hide-sm, #bar kbd { display: none; }
+  @media (max-width: 1180px) { #bar kbd, #bar .brand .sub { display: none; } }
+  @media (max-width: 960px) {
+    #bar .hide-sm { display: none; }
     #bar { gap: 6px; padding: 10px; } #bar button, #bar a.btn { padding: 6px 8px; } #count { min-width: 52px; }
     #stage { padding: 6px; }
   }
@@ -94,7 +98,7 @@
     </div>
   </div>
   <div id="bar">
-    <div class="brand">HAWSIR<span class="hide-sm"> · <span style="color:var(--soft);font-weight:normal;letter-spacing:0">FleetHacker Norfolk 2026</span></span></div>
+    <div class="brand">HAWSIR<span class="sub"> · <span style="color:var(--soft);font-weight:normal;letter-spacing:0">FleetHacker Norfolk 2026</span></span></div>
     <div class="grow"></div>
     <button id="bprev" aria-label="Previous slide">‹</button>
     <div id="count">–</div>
